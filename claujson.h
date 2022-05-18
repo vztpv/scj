@@ -730,7 +730,7 @@ namespace claujson {
 		uint64_t alloc_idx = 0;
 
 		ItemType value; // equal to key
-		int type = -1; // 0 - object, 1 - array, 2 - virtual object, 3 - virtual array, 4 - item, -1 - root  -2 - only in parse...
+		int type = -1; // 0 - object, 1 - array, 2 - virtual object, 3 - virtual array, 4 - item, -1 - root, -2 - only in parse...
 		UserType* parent = nullptr;
 	public:
 		//INLINE const static size_t npos = -1; // ?
@@ -791,7 +791,20 @@ namespace claujson {
 			}
 
 			value = (other.value);
-			data = (other.data);
+			for (auto& x : data) {
+				if (x) {
+					delete x;
+					x = nullptr;
+				}
+			}
+			
+			data.reserve(other.get_data_size());
+			for (auto& x : other.data) {
+				if (x) {
+					data.push_back(x->clone());
+				}
+			}
+			//data = (other.data);
 			type = (other.type);
 			parent = (other.parent);
 
