@@ -713,6 +713,7 @@ namespace claujson {
 
 			for (auto x : this->data) {
 				temp->data.push_back(x->clone());
+				temp->data.back()->parent = temp;
 			}
 
 			return temp;
@@ -731,7 +732,7 @@ namespace claujson {
 
 		ItemType value; // equal to key
 		int type = -1; // 0 - object, 1 - array, 2 - virtual object, 3 - virtual array, 4 - item, -1 - root, -2 - only in parse...
-		UserType* parent = nullptr;
+		UserType* parent = nullptr; // 
 	public:
 		//INLINE const static size_t npos = -1; // ?
 		// chk type?
@@ -769,20 +770,24 @@ namespace claujson {
 	public:
 		UserType(const UserType& other)
 			: value(other.value),
-			type(other.type), parent(other.parent)
+			type(other.type), parent(other.parent) //
 		{
 			this->data.reserve(other.data.size());
 			for (auto& x : other.data) {
 				this->data.push_back(x->clone());
+				this->data.back()->parent = this;
 			}
 		}
 
-
+		//todo - fix? for type, parent, std::swap?
 		UserType(UserType&& other) noexcept {
 			value = std::move(other.value);
-			this->data = std::move(other.data);
-			type = std::move(other.type);
-			parent = std::move(other.parent);
+			std::swap(this->data, other.data);
+			for (auto& x : data) {
+				x->parent = this;
+			}
+			std::swap(type, other.type);
+			//parent = std::move(other.parent);//
 		}
 
 		UserType& operator=(const UserType& other) {
@@ -807,7 +812,7 @@ namespace claujson {
 			}
 			//data = (other.data);
 			type = (other.type);
-			parent = (other.parent);
+			//parent = (other.parent);//
 
 			return *this;
 		}
@@ -818,9 +823,12 @@ namespace claujson {
 			}
 
 			value = std::move(other.value);
-			data = std::move(other.data);
-			type = std::move(other.type);
-			parent = std::move(other.parent);
+			std::swap(data, other.data); //
+			for (auto& x : data) {
+				x->parent = this;
+			}
+			std::swap(type, other.type);
+			//parent = std::move(other.parent);//
 
 			return *this;
 		}
@@ -1307,6 +1315,8 @@ namespace claujson {
 				if (ut_next && _ut == *ut_next) {
 					*ut_next = _next;
 					chk_ut_next = true;
+
+					std::cout << "chked in merge...\n";
 				}
 
 
