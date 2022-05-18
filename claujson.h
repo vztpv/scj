@@ -75,76 +75,6 @@ namespace claujson {
 
 	//UserType* ChkPool(UserType*& node, PoolManager& manager);
 
-
-	class StringPtr {
-	private:
-		std::string* str = nullptr;
-	public:
-		StringPtr() { }
-		StringPtr(const std::string& str) {
-			this->str = new std::string(str);
-		}
-		StringPtr(std::string&& str) {
-			this->str = new std::string(std::move(str));
-		}
-		StringPtr(const char* cstr, size_t len) {
-			this->str = new std::string(cstr, len);
-		}
-		StringPtr(const StringPtr& other) {
-			if (other.str) {
-				this->str = new std::string(*other.str);
-			}
-		}
-		StringPtr(StringPtr&& other) noexcept {
-			std::swap(this->str, other.str);
-		}
-
-		~StringPtr() { if (str) { delete str; } }
-
-		StringPtr& operator=(const StringPtr& other) {
-			StringPtr temp(other);
-
-			std::swap(this->str, temp.str);
-
-			return *this;
-		}
-
-		StringPtr& operator=(StringPtr&& other) noexcept {
-			StringPtr temp(std::move(other));
-
-			std::swap(this->str, temp.str);
-
-			return *this;
-		}
-
-	public:
-		bool operator==(const StringPtr& other) const {
-			if (!this->str && !other.str) { return true; }
-			if (this->str && other.str) {
-				return *this->str == *other.str;
-			}
-			return false;
-		}
-
-		bool operator!=(const StringPtr& other) const {
-			return !(*this == other);
-		}
-
-		bool operator<(const StringPtr& other) const {
-			if (this->str && other.str) {
-				return *this->str < *other.str;
-			}
-			return false;
-		}
-
-	public:
-		operator std::string& () {
-			static std::string EMPTY_STRING("");
-			if (str) { return *str; }
-			return EMPTY_STRING;
-		}
-	};
-
 	class Data {
 	public:
 		simdjson::internal::tape_type type;
@@ -770,7 +700,7 @@ namespace claujson {
 	public:
 		UserType(const UserType& other)
 			: value(other.value),
-			type(other.type), parent(other.parent) //
+			type(other.type) //, parent(other.parent) //
 		{
 			this->data.reserve(other.data.size());
 			for (auto& x : other.data) {
