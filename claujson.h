@@ -797,11 +797,12 @@ namespace claujson {
 					x = nullptr;
 				}
 			}
-			
+			data.clear();
 			data.reserve(other.get_data_size());
 			for (auto& x : other.data) {
 				if (x) {
 					data.push_back(x->clone());
+					data.back()->parent = this;
 				}
 			}
 			//data = (other.data);
