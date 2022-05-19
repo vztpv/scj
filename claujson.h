@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "fmt/format.h"
+#include "fmt/compile.h"
 
 #include <iostream>
 #include "simdjson.h" // modified simdjson 
@@ -1922,8 +1924,47 @@ namespace claujson {
 			return LoadData::_LoadData(pool, pool_length, global, buf, buf_len, string_buf, imple, length, start, thr_num, blocks);
 		}
 
+
+		class StrStream {
+		private:
+			fmt::memory_buffer out;
+		public:
+
+			const char* buf() const {
+				return out.data();
+			}
+			size_t buf_size() const {
+				return out.size();
+			}
+
+			StrStream& operator<<(std::string_view x) {
+				format_to(std::back_inserter(out), "{}", x);
+				return *this;
+			}
+
+			StrStream& operator<<(double x) {
+				format_to(std::back_inserter(out), FMT_COMPILE("{:.10f}"), x);
+				return *this;
+			}
+
+			StrStream& operator<<(int64_t x) {
+				format_to(std::back_inserter(out), "{}", x);
+				return *this;
+			}
+
+			StrStream& operator<<(uint64_t x) {
+				format_to(std::back_inserter(out), "{}", x);
+				return *this;
+			}
+
+			StrStream& operator<<(char ch) {
+				format_to(std::back_inserter(out), "{}", ch);
+				return *this;
+			}
+		};
+
 		//
-		static void _save(std::ostream& stream, UserType* ut, const int depth = 0) {
+		static void _save(StrStream& stream, UserType* ut, const int depth = 0) {
 			if (!ut) { return; }
 
 			if (ut->is_object()) {
@@ -1934,7 +1975,7 @@ namespace claujson {
 						if (
 							x.key.type == simdjson::internal::tape_type::STRING) {
 							stream << "\"";
-							for (long long j = 0; j < ((std::string)(*x.key.get_str_val())).size(); ++j) {
+							for (long long j = 0; j < ((std::string&)(*x.key.get_str_val())).size(); ++j) {
 								switch ((*x.key.get_str_val())[j]) {
 								case '\\':
 									stream << "\\\\";
@@ -2089,7 +2130,7 @@ namespace claujson {
 								stream << "false";
 							}
 							else if (x.data.type == simdjson::internal::tape_type::DOUBLE) {
-								stream << std::fixed << std::setprecision(6) << (x.data.float_val);
+								stream << (x.data.float_val);
 							}
 							else if (x.data.type == simdjson::internal::tape_type::INT64) {
 								stream << x.data.int_val;
@@ -2179,7 +2220,7 @@ namespace claujson {
 							stream << "false";
 						}
 						else if (x.data.type == simdjson::internal::tape_type::DOUBLE) {
-							stream << std::fixed << std::setprecision(6) << (x.data.float_val);
+							stream << (x.data.float_val);
 						}
 						else if (x.data.type == simdjson::internal::tape_type::INT64) {
 							stream << x.data.int_val;
@@ -2203,11 +2244,15 @@ namespace claujson {
 		}
 
 		static void save(const std::string& fileName, class UserType& global) {
+			StrStream stream;
+
+			_save(stream, &global);
+
+			std::cout << "Save to StrStream.\n";
+
 			std::ofstream outFile;
 			outFile.open(fileName, std::ios::binary); // binary!
-
-			_save(outFile, &global);
-
+			outFile.write(stream.buf(), stream.buf_size());
 			outFile.close();
 		}
 	};
