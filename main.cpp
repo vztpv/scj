@@ -1,5 +1,5 @@
 ﻿
-// now, only haswell..
+// now, test only haswell..
 
 #define _CRT_SECURE_NO_WARNINGS
 
@@ -9,7 +9,7 @@
 
 #include "mimalloc-new-delete.h"
 
-#include "claujson.h" // using simdjson 1.0.2
+#include "claujson.h" // using simdjson 2.0.0
 
 using namespace std::literals::string_view_literals;
 
@@ -57,7 +57,7 @@ int main(int argc, char* argv[])
 		int b = clock();
 		std::cout << "total " << b - a << "ms\n";
 		//claujson::LoadData::_save(std::cout, &ut);
-		claujson::LoadData::save("output.json", ut);
+	//	claujson::LoadData::save("output2.json", ut);
 		int c = clock();
 		std::cout << c - b << "ms\n";
 

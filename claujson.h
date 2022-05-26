@@ -263,8 +263,9 @@ namespace claujson {
 	};
 }
 
-
-#if SIMDJSON_IMPLEMENTATION_HASWELL
+#if SIMDJSON_IMPLEMENTATION_ICELAKE
+#define SIMDJSON_IMPLEMENTATION icelake
+#elif SIMDJSON_IMPLEMENTATION_HASWELL
 #define SIMDJSON_IMPLEMENTATION haswell //
 #elif SIMDJSON_IMPLEMENTATION_WESTMERE
 #define SIMDJSON_IMPLEMENTATION westmere
@@ -500,7 +501,7 @@ namespace simdjson {
 			break;
 		}
 		default:
-			std::cout << "convert error dd" << (int)buf[idx] << "\n";
+			std::cout << "convert error dd" << (int)buf[idx] << " " << buf[idx] << "\n";
 			exit(1);
 		}
 		return data;
@@ -1153,6 +1154,7 @@ namespace claujson {
 		//blocks.clear();
 		dead_list_start = nullptr;
 		for (size_t i = 0; i < outOfPool.size(); ++i) {
+			std::cout << i << "th..\n";
 			delete outOfPool[i];
 		}
 		outOfPool.clear();
@@ -2448,9 +2450,9 @@ namespace claujson {
 
 			start[thr_num] = length;
 
-			pool = (claujson::UserType*)calloc(length / 2, sizeof(claujson::UserType));
+			pool = (claujson::UserType*)calloc(length / 2 + 1, sizeof(claujson::UserType));
 
-			if (false == claujson::LoadData::parse(pool, length / 2, *ut, buf.get(), buf_len, string_buf.get(), imple.get(), length, start, thr_num, pool_managers)) // 0 : use all thread..
+			if (false == claujson::LoadData::parse(pool, length / 2 + 1, *ut, buf.get(), buf_len, string_buf.get(), imple.get(), length, start, thr_num, pool_managers)) // 0 : use all thread..
 			{
 				free(pool);
 				return { nullptr, 0 };
