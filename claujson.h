@@ -418,6 +418,7 @@ namespace simdjson {
 		case 't':
 		{
 			if (!simdjson::SIMDJSON_IMPLEMENTATION::atomparsing::is_valid_true_atom(reinterpret_cast<uint8_t*>(&buf[idx]), idx2 - idx)) {
+				std::cout << idx2 << "\n";
 				exit(1);
 			}
 
@@ -1189,7 +1190,7 @@ namespace claujson {
 	//	}
 
 		// 3. new in out of pool. (new)
-		outOfPool.push_back((UserType*)calloc(1, sizeof(UserType)));
+		outOfPool.push_back(new UserType());
 		outOfPool.back()->alloc_type = PoolManager::Type::FROM_NEW;
 		outOfPool.back()->alloc_idx = outOfPool.size() - 1;
 		return outOfPool.back();
@@ -2256,6 +2257,12 @@ namespace claujson {
 			outFile.open(fileName, std::ios::binary); // binary!
 			outFile.write(stream.buf(), stream.buf_size());
 			outFile.close();
+		}
+
+		static void save(std::ostream& stream, class UserType& global) {
+			StrStream str_stream;
+			_save(str_stream, &global);
+			stream << std::string_view(str_stream.buf(), str_stream.buf_size());
 		}
 	};
 
