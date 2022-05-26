@@ -1,4 +1,4 @@
-/* auto-generated on 2022-05-25 11:24:40 -0400. Do not edit! */
+/* auto-generated on 2022-05-26 16:15:49 -0400. Do not edit! */
 /* begin file src/simdjson.cpp */
 #include "simdjson.h"
 
@@ -4729,7 +4729,7 @@ private:
   simdjson_really_inline void start_container(json_iterator &iter) noexcept;
   simdjson_warn_unused simdjson_really_inline error_code end_container(json_iterator &iter, internal::tape_type start, internal::tape_type end) noexcept;
   simdjson_warn_unused simdjson_really_inline error_code empty_container(json_iterator &iter, internal::tape_type start, internal::tape_type end) noexcept;
-  simdjson_really_inline uint8_t *on_start_string(json_iterator &iter, bool) noexcept;
+  simdjson_really_inline uint8_t *on_start_string(json_iterator &iter) noexcept;
   simdjson_really_inline void on_end_string(uint8_t *dst) noexcept;
 }; // class tape_builder
 
@@ -4737,7 +4737,6 @@ template<bool STREAMING>
 simdjson_warn_unused simdjson_really_inline error_code tape_builder::parse_document(
     dom_parser_implementation &dom_parser,
     dom::document &doc) noexcept {
-   
   dom_parser.doc = &doc;
   json_iterator iter(dom_parser, STREAMING ? dom_parser.next_structural_index : 0);
   tape_builder builder(doc);
@@ -4795,7 +4794,7 @@ simdjson_really_inline tape_builder::tape_builder(dom::document &doc) noexcept :
 
 simdjson_warn_unused simdjson_really_inline error_code tape_builder::visit_string(json_iterator &iter, const uint8_t *value, bool key) noexcept {
   iter.log_value(key ? "key" : "string");
-  uint8_t *dst = on_start_string(iter, key);
+  uint8_t *dst = on_start_string(iter);
   dst = stringparsing::parse_string(value+1, dst);
   if (dst == nullptr) {
     iter.log_error("Invalid escape in string");
@@ -4910,9 +4909,9 @@ simdjson_warn_unused simdjson_really_inline error_code tape_builder::end_contain
   return SUCCESS;
 }
 
-simdjson_really_inline uint8_t *tape_builder::on_start_string(json_iterator &iter, bool key) noexcept {
+simdjson_really_inline uint8_t *tape_builder::on_start_string(json_iterator &iter) noexcept {
   // we advance the point, accounting for the fact that we have a NULL termination
-  tape.append(current_string_buf_loc - iter.dom_parser.doc->string_buf.get(), key? internal::tape_type::KEY : internal::tape_type::STRING);
+  tape.append(current_string_buf_loc - iter.dom_parser.doc->string_buf.get(), internal::tape_type::STRING);
   return current_string_buf_loc + sizeof(uint32_t);
 }
 
@@ -4976,10 +4975,7 @@ simdjson_warn_unused error_code dom_parser_implementation::stage2_next(dom::docu
 
 simdjson_warn_unused error_code dom_parser_implementation::parse(const uint8_t *_buf, size_t _len, dom::document &_doc) noexcept {
   auto error = stage1(_buf, _len, stage1_mode::regular);
-  if (error) { return error; }
-
-  _doc.len = _len;
-  return error_code();
+  if (error) { return error; } return error_code();
   return stage2(_doc);
 }
 
@@ -6061,7 +6057,7 @@ private:
   simdjson_really_inline void start_container(json_iterator &iter) noexcept;
   simdjson_warn_unused simdjson_really_inline error_code end_container(json_iterator &iter, internal::tape_type start, internal::tape_type end) noexcept;
   simdjson_warn_unused simdjson_really_inline error_code empty_container(json_iterator &iter, internal::tape_type start, internal::tape_type end) noexcept;
-  simdjson_really_inline uint8_t *on_start_string(json_iterator &iter, bool) noexcept;
+  simdjson_really_inline uint8_t *on_start_string(json_iterator &iter) noexcept;
   simdjson_really_inline void on_end_string(uint8_t *dst) noexcept;
 }; // class tape_builder
 
@@ -6069,7 +6065,6 @@ template<bool STREAMING>
 simdjson_warn_unused simdjson_really_inline error_code tape_builder::parse_document(
     dom_parser_implementation &dom_parser,
     dom::document &doc) noexcept {
-    return error_code();
   dom_parser.doc = &doc;
   json_iterator iter(dom_parser, STREAMING ? dom_parser.next_structural_index : 0);
   tape_builder builder(doc);
@@ -6127,7 +6122,7 @@ simdjson_really_inline tape_builder::tape_builder(dom::document &doc) noexcept :
 
 simdjson_warn_unused simdjson_really_inline error_code tape_builder::visit_string(json_iterator &iter, const uint8_t *value, bool key) noexcept {
   iter.log_value(key ? "key" : "string");
-  uint8_t *dst = on_start_string(iter, key);
+  uint8_t *dst = on_start_string(iter);
   dst = stringparsing::parse_string(value+1, dst);
   if (dst == nullptr) {
     iter.log_error("Invalid escape in string");
@@ -6242,9 +6237,9 @@ simdjson_warn_unused simdjson_really_inline error_code tape_builder::end_contain
   return SUCCESS;
 }
 
-simdjson_really_inline uint8_t *tape_builder::on_start_string(json_iterator &iter, bool key) noexcept {
+simdjson_really_inline uint8_t *tape_builder::on_start_string(json_iterator &iter) noexcept {
   // we advance the point, accounting for the fact that we have a NULL termination
-  tape.append(current_string_buf_loc - iter.dom_parser.doc->string_buf.get(), key? internal::tape_type::KEY : internal::tape_type::STRING);
+  tape.append(current_string_buf_loc - iter.dom_parser.doc->string_buf.get(), internal::tape_type::STRING);
   return current_string_buf_loc + sizeof(uint32_t);
 }
 
@@ -6279,11 +6274,7 @@ simdjson_warn_unused error_code dom_parser_implementation::stage2_next(dom::docu
 
 simdjson_warn_unused error_code dom_parser_implementation::parse(const uint8_t *_buf, size_t _len, dom::document &_doc) noexcept {
   auto error = stage1(_buf, _len, stage1_mode::regular);
-  if (error) { return error; } 
-  
-  _doc.len = _len;
-
-  return error_code();
+  if (error) { return error; }return error_code();
   return stage2(_doc);
 }
 
@@ -7598,6 +7589,9 @@ simdjson_really_inline error_code json_structural_indexer::finish(dom_parser_imp
  * naked intrinsics.
  * TODO: make this code more elegant.
  */
+// Under GCC 12, the intrinsic _mm512_extracti32x4_epi32 may generate 'maybe uninitialized'.
+// as a workaround, we disable warnings within the following function.
+SIMDJSON_PUSH_DISABLE_ALL_WARNINGS
 namespace simdjson { namespace icelake { namespace { namespace stage1 {
 simdjson_really_inline void bit_indexer::write(uint32_t idx, uint64_t bits) {
     // In some instances, the next branch is expensive because it is mispredicted.
@@ -7632,6 +7626,7 @@ simdjson_really_inline void bit_indexer::write(uint32_t idx, uint64_t bits) {
     this->tail += count;
 }
 }}}}
+SIMDJSON_POP_DISABLE_WARNINGS
 
 /* begin file src/generic/stage1/utf8_validator.h */
 namespace simdjson {
@@ -8268,7 +8263,7 @@ private:
   simdjson_really_inline void start_container(json_iterator &iter) noexcept;
   simdjson_warn_unused simdjson_really_inline error_code end_container(json_iterator &iter, internal::tape_type start, internal::tape_type end) noexcept;
   simdjson_warn_unused simdjson_really_inline error_code empty_container(json_iterator &iter, internal::tape_type start, internal::tape_type end) noexcept;
-  simdjson_really_inline uint8_t *on_start_string(json_iterator &iter, bool) noexcept;
+  simdjson_really_inline uint8_t *on_start_string(json_iterator &iter) noexcept;
   simdjson_really_inline void on_end_string(uint8_t *dst) noexcept;
 }; // class tape_builder
 
@@ -8333,7 +8328,7 @@ simdjson_really_inline tape_builder::tape_builder(dom::document &doc) noexcept :
 
 simdjson_warn_unused simdjson_really_inline error_code tape_builder::visit_string(json_iterator &iter, const uint8_t *value, bool key) noexcept {
   iter.log_value(key ? "key" : "string");
-  uint8_t *dst = on_start_string(iter, key);
+  uint8_t *dst = on_start_string(iter);
   dst = stringparsing::parse_string(value+1, dst);
   if (dst == nullptr) {
     iter.log_error("Invalid escape in string");
@@ -8448,9 +8443,9 @@ simdjson_warn_unused simdjson_really_inline error_code tape_builder::end_contain
   return SUCCESS;
 }
 
-simdjson_really_inline uint8_t *tape_builder::on_start_string(json_iterator &iter, bool key) noexcept {
+simdjson_really_inline uint8_t *tape_builder::on_start_string(json_iterator &iter) noexcept {
   // we advance the point, accounting for the fact that we have a NULL termination
-  tape.append(current_string_buf_loc - iter.dom_parser.doc->string_buf.get(), key ? internal::tape_type::KEY : internal::tape_type::STRING);
+  tape.append(current_string_buf_loc - iter.dom_parser.doc->string_buf.get(), internal::tape_type::STRING);
   return current_string_buf_loc + sizeof(uint32_t);
 }
 
@@ -8503,7 +8498,6 @@ simdjson_warn_unused bool implementation::validate_utf8(const char *buf, size_t 
 }
 
 simdjson_warn_unused error_code dom_parser_implementation::stage2(dom::document &_doc) noexcept {
-    return error_code();
   return stage2::tape_builder::parse_document<false>(*this, _doc);
 }
 
@@ -8513,10 +8507,7 @@ simdjson_warn_unused error_code dom_parser_implementation::stage2_next(dom::docu
 
 simdjson_warn_unused error_code dom_parser_implementation::parse(const uint8_t *_buf, size_t _len, dom::document &_doc) noexcept {
   auto error = stage1(_buf, _len, stage1_mode::regular);
-  if (error) { return error; }
-  _doc.len = _len;
-  return error_code();
-
+  if (error) { return error; }return error_code();
   return stage2(_doc);
 }
 
@@ -10460,7 +10451,7 @@ private:
   simdjson_really_inline void start_container(json_iterator &iter) noexcept;
   simdjson_warn_unused simdjson_really_inline error_code end_container(json_iterator &iter, internal::tape_type start, internal::tape_type end) noexcept;
   simdjson_warn_unused simdjson_really_inline error_code empty_container(json_iterator &iter, internal::tape_type start, internal::tape_type end) noexcept;
-  simdjson_really_inline uint8_t *on_start_string(json_iterator &iter, bool) noexcept;
+  simdjson_really_inline uint8_t *on_start_string(json_iterator &iter) noexcept;
   simdjson_really_inline void on_end_string(uint8_t *dst) noexcept;
 }; // class tape_builder
 
@@ -10525,7 +10516,7 @@ simdjson_really_inline tape_builder::tape_builder(dom::document &doc) noexcept :
 
 simdjson_warn_unused simdjson_really_inline error_code tape_builder::visit_string(json_iterator &iter, const uint8_t *value, bool key) noexcept {
   iter.log_value(key ? "key" : "string");
-  uint8_t *dst = on_start_string(iter, key);
+  uint8_t *dst = on_start_string(iter);
   dst = stringparsing::parse_string(value+1, dst);
   if (dst == nullptr) {
     iter.log_error("Invalid escape in string");
@@ -10640,9 +10631,9 @@ simdjson_warn_unused simdjson_really_inline error_code tape_builder::end_contain
   return SUCCESS;
 }
 
-simdjson_really_inline uint8_t *tape_builder::on_start_string(json_iterator & iter, bool key) noexcept {
+simdjson_really_inline uint8_t *tape_builder::on_start_string(json_iterator &iter) noexcept {
   // we advance the point, accounting for the fact that we have a NULL termination
-  tape.append(current_string_buf_loc - iter.dom_parser.doc->string_buf.get(), key ? internal::tape_type::KEY : internal::tape_type::STRING);
+  tape.append(current_string_buf_loc - iter.dom_parser.doc->string_buf.get(), internal::tape_type::STRING);
   return current_string_buf_loc + sizeof(uint32_t);
 }
 
@@ -10704,10 +10695,7 @@ simdjson_warn_unused error_code dom_parser_implementation::stage2_next(dom::docu
 
 simdjson_warn_unused error_code dom_parser_implementation::parse(const uint8_t *_buf, size_t _len, dom::document &_doc) noexcept {
   auto error = stage1(_buf, _len, stage1_mode::regular);
-  if (error) { return error; } 
-  _doc.len = _len;
-  return error_code();
-
+  if (error) { return error; }return error_code();
   return stage2(_doc);
 }
 
@@ -12615,7 +12603,7 @@ private:
   simdjson_really_inline void start_container(json_iterator &iter) noexcept;
   simdjson_warn_unused simdjson_really_inline error_code end_container(json_iterator &iter, internal::tape_type start, internal::tape_type end) noexcept;
   simdjson_warn_unused simdjson_really_inline error_code empty_container(json_iterator &iter, internal::tape_type start, internal::tape_type end) noexcept;
-  simdjson_really_inline uint8_t *on_start_string(json_iterator &iter, bool) noexcept;
+  simdjson_really_inline uint8_t *on_start_string(json_iterator &iter) noexcept;
   simdjson_really_inline void on_end_string(uint8_t *dst) noexcept;
 }; // class tape_builder
 
@@ -12680,7 +12668,7 @@ simdjson_really_inline tape_builder::tape_builder(dom::document &doc) noexcept :
 
 simdjson_warn_unused simdjson_really_inline error_code tape_builder::visit_string(json_iterator &iter, const uint8_t *value, bool key) noexcept {
   iter.log_value(key ? "key" : "string");
-  uint8_t *dst = on_start_string(iter, key);
+  uint8_t *dst = on_start_string(iter);
   dst = stringparsing::parse_string(value+1, dst);
   if (dst == nullptr) {
     iter.log_error("Invalid escape in string");
@@ -12795,9 +12783,9 @@ simdjson_warn_unused simdjson_really_inline error_code tape_builder::end_contain
   return SUCCESS;
 }
 
-simdjson_really_inline uint8_t *tape_builder::on_start_string(json_iterator &iter, bool key) noexcept {
+simdjson_really_inline uint8_t *tape_builder::on_start_string(json_iterator &iter) noexcept {
   // we advance the point, accounting for the fact that we have a NULL termination
-  tape.append(current_string_buf_loc - iter.dom_parser.doc->string_buf.get(), key ? internal::tape_type::KEY : internal::tape_type::STRING);
+  tape.append(current_string_buf_loc - iter.dom_parser.doc->string_buf.get(), internal::tape_type::STRING);
   return current_string_buf_loc + sizeof(uint32_t);
 }
 
@@ -12861,11 +12849,7 @@ simdjson_warn_unused error_code dom_parser_implementation::stage2_next(dom::docu
 
 simdjson_warn_unused error_code dom_parser_implementation::parse(const uint8_t *_buf, size_t _len, dom::document &_doc) noexcept {
   auto error = stage1(_buf, _len, stage1_mode::regular);
-  if (error) { return error; } 
-  
-  _doc.len = _len;
-  return error_code();
-  
+  if (error) { return error; }return error_code();
   return stage2(_doc);
 }
 

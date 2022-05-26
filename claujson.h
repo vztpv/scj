@@ -143,14 +143,14 @@ namespace claujson {
 
 		Data(const Data& other)
 			: type(other.type), int_val(other.int_val), uint_val(other.uint_val), float_val(other.float_val), is_key(other.is_key) {
-			if (type == simdjson::internal::tape_type::KEY || type == simdjson::internal::tape_type::STRING) {
+			if (type == simdjson::internal::tape_type::STRING) {
 				str_val = new std::string(*other.str_val);
 			}
 		}
 
 		Data(Data&& other) noexcept
 			: type(other.type), int_val(other.int_val), uint_val(other.uint_val), float_val(other.float_val), is_key(other.is_key) {
-			if (type == simdjson::internal::tape_type::KEY || type == simdjson::internal::tape_type::STRING) {
+			if (type == simdjson::internal::tape_type::STRING) {
 				str_val = other.str_val;
 				other.str_val = nullptr;
 			}

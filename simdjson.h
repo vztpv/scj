@@ -1,4 +1,4 @@
-/* auto-generated on 2022-05-25 11:24:40 -0400. Do not edit! */
+/* auto-generated on 2022-05-26 16:15:49 -0400. Do not edit! */
 /* begin file include/simdjson.h */
 #ifndef SIMDJSON_H
 #define SIMDJSON_H
@@ -43,7 +43,7 @@
 #define SIMDJSON_SIMDJSON_VERSION_H
 
 /** The version of simdjson being used (major.minor.revision) */
-#define SIMDJSON_VERSION 2.0.0
+#define SIMDJSON_VERSION 2.0.1
 
 namespace simdjson {
 enum {
@@ -58,7 +58,7 @@ enum {
   /**
    * The revision (major.minor.REVISION) of simdjson being used.
    */
-  SIMDJSON_VERSION_REVISION = 0
+  SIMDJSON_VERSION_REVISION = 1
 };
 } // namespace simdjson
 
@@ -414,6 +414,9 @@ constexpr size_t DEFAULT_MAX_DEPTH = 1024;
 
   #define SIMDJSON_PUSH_DISABLE_WARNINGS _Pragma("GCC diagnostic push")
   // gcc doesn't seem to disable all warnings with all and extra, add warnings here as necessary
+  // We do it separately for clang since it has different warnings.
+  #ifdef __clang__
+  // clang is missing -Wmaybe-uninitialized.
   #define SIMDJSON_PUSH_DISABLE_ALL_WARNINGS SIMDJSON_PUSH_DISABLE_WARNINGS \
     SIMDJSON_DISABLE_GCC_WARNING(-Weffc++) \
     SIMDJSON_DISABLE_GCC_WARNING(-Wall) \
@@ -426,6 +429,22 @@ constexpr size_t DEFAULT_MAX_DEPTH = 1024;
     SIMDJSON_DISABLE_GCC_WARNING(-Wshadow) \
     SIMDJSON_DISABLE_GCC_WARNING(-Wunused-parameter) \
     SIMDJSON_DISABLE_GCC_WARNING(-Wunused-variable)
+  #else // __clang__
+  #define SIMDJSON_PUSH_DISABLE_ALL_WARNINGS SIMDJSON_PUSH_DISABLE_WARNINGS \
+    SIMDJSON_DISABLE_GCC_WARNING(-Weffc++) \
+    SIMDJSON_DISABLE_GCC_WARNING(-Wall) \
+    SIMDJSON_DISABLE_GCC_WARNING(-Wconversion) \
+    SIMDJSON_DISABLE_GCC_WARNING(-Wextra) \
+    SIMDJSON_DISABLE_GCC_WARNING(-Wattributes) \
+    SIMDJSON_DISABLE_GCC_WARNING(-Wimplicit-fallthrough) \
+    SIMDJSON_DISABLE_GCC_WARNING(-Wnon-virtual-dtor) \
+    SIMDJSON_DISABLE_GCC_WARNING(-Wreturn-type) \
+    SIMDJSON_DISABLE_GCC_WARNING(-Wshadow) \
+    SIMDJSON_DISABLE_GCC_WARNING(-Wunused-parameter) \
+    SIMDJSON_DISABLE_GCC_WARNING(-Wunused-variable) \
+    SIMDJSON_DISABLE_GCC_WARNING(-Wmaybe-uninitialized)
+  #endif // __clang__
+
   #define SIMDJSON_PRAGMA(P) _Pragma(#P)
   #define SIMDJSON_DISABLE_GCC_WARNING(WARNING) SIMDJSON_PRAGMA(GCC diagnostic ignored #WARNING)
   #if defined(SIMDJSON_CLANG_VISUAL_STUDIO)
@@ -3941,7 +3960,6 @@ enum class tape_type {
   TRUE_VALUE = 't',
   FALSE_VALUE = 'f',
   NULL_VALUE = 'n',
-  KEY = 'k',
   COMMA = ',',
   COLON = ':'
 }; // enum class tape_type
@@ -4206,7 +4224,7 @@ class element;
  */
 class document {
 public:
-    uint64_t len;
+    int64_t len;
 public:
   /**
    * Create a document container with zero capacity.
@@ -4331,7 +4349,7 @@ static constexpr size_t MINIMAL_DOCUMENT_CAPACITY = 32;
  * @note This is not thread safe: one parser cannot produce two documents at the same time!
  */
 class parser {
-public:
+public:  
     std::unique_ptr<char[]>& raw_buf() {
         return loaded_bytes;
     }
@@ -4342,8 +4360,10 @@ public:
         return implementation;
     }
     uint64_t raw_len() {
-        return doc.len;
+        return len;
     }
+private:
+    uint64_t len = 0;
 public:
   /**
    * Create a JSON parser.
@@ -8684,6 +8704,7 @@ inline simdjson_result<element> parser::parse_into_document(document& provided_d
     }
     std::memcpy(static_cast<void *>(loaded_bytes.get()), buf, len);
   }
+  this->len = len;
   _error = implementation->parse(realloc_if_needed ? reinterpret_cast<const uint8_t*>(loaded_bytes.get()): buf, len, provided_doc);
 
   if (_error) { return _error; }
@@ -9498,6 +9519,11 @@ extern SIMDJSON_DLLIMPORTEXPORT const uint64_t thintable_epi8[256];
 #if __has_include(<avx512vbmi2intrin.h>)
 #define SIMDJSON_COMPILER_SUPPORTS_VBMI2 1
 #endif
+#endif
+
+// By default, we allow AVX512.
+#ifndef SIMDJSON_AVX512_ALLOWED
+#define SIMDJSON_AVX512_ALLOWED 1
 #endif
 
 // Default Icelake to on if this is x86-64. Even if we're not compiled for it, it could be selected
