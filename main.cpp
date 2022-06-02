@@ -33,13 +33,10 @@ namespace claujson {
 	*/
 }
 
-
-
 int main(int argc, char* argv[])
 {
-	//test();
 
-
+	std::cout << sizeof(claujson::UserType) << "\n";
 	claujson::UserType ut;
 	try {
 		int a = clock();
@@ -57,14 +54,14 @@ int main(int argc, char* argv[])
 		int b = clock();
 		std::cout << "total " << b - a << "ms\n";
 		//claujson::LoadData::_save(std::cout, &ut);
-		claujson::LoadData::save(std::cout, ut);
+		//claujson::LoadData::save(std::cout, ut);
 		//claujson::LoadData::save("output3.json", ut);
 		int c = clock();
 		std::cout << c - b << "ms\n";
 
 		//test2(&ut);
-/*
-		{
+
+		{/*
 			//claujson::ChkPool(ut.get_data_list(0), poolManager2);
 			
 			//poolManager.Clear();
@@ -122,9 +119,9 @@ int main(int argc, char* argv[])
 				std::cout << clock() - a << "ms\n";
 				std::cout << "chk " <<  chk << "\n";
 				////std::cout << "time " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << "ms\n";
-			}
+			}*/
 		}
-		*/
+		
 		bool ok = nullptr != x.first;
 
 		//ut.remove_all(poolManager);
