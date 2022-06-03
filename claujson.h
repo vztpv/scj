@@ -1219,14 +1219,13 @@ namespace claujson {
 
 namespace claujson {
 
-	inline simdjson::internal::tape_type get_type(int x) {
-		switch (x) {
+	inline simdjson::internal::tape_type get_type(char* x) {
+		switch (*x) {
 		case '-':
 		case '0':
 		case '1': case '2': case '3': case '4':
 		case '5': case '6': case '7': case '8': case '9':
 			return simdjson::internal::tape_type::DOUBLE; // number?
-
 			break;
 		case '"':
 		case 't':
@@ -1236,9 +1235,12 @@ namespace claujson {
 		case '[':
 		case '}':
 		case ']':
+			return	(simdjson::internal::tape_type)(*x);
+			break;
 		case ':':
 		case ',':
-			return	(simdjson::internal::tape_type)x;
+			
+			return	(simdjson::internal::tape_type)(*x);
 			break;
 		}
 		return simdjson::internal::tape_type::NONE;
@@ -1364,7 +1366,7 @@ namespace claujson {
 
 			if (token_arr_start > 0) {
 				const simdjson::internal::tape_type before_type = // next_type
-					get_type(buf[imple->structural_indexes[token_arr_start - 1]]);
+					get_type(&buf[imple->structural_indexes[token_arr_start - 1]]);
 
 				is_before_comma = before_type == simdjson::internal::tape_type::COMMA;
 			}
@@ -1372,7 +1374,7 @@ namespace claujson {
 
 			for (int64_t i = 0; i < token_arr_len; ++i) {
 
-				const simdjson::internal::tape_type type = get_type(buf[imple->structural_indexes[token_arr_start + i]]);
+				const simdjson::internal::tape_type type = get_type(&buf[imple->structural_indexes[token_arr_start + i]]);
 
 				switch (state)
 				{
@@ -1380,26 +1382,14 @@ namespace claujson {
 				{
 					if (is_before_comma && type == simdjson::internal::tape_type::COMMA) {
 						std::cout << "before is comma\n";
-						exit(1);
+						exit(111);
 						//
 					}
 
-					if (token_arr_start + i + 1 < imple->n_structural_indexes) {
-						const simdjson::internal::tape_type _type =
-							get_type(buf[imple->structural_indexes[token_arr_start + i]]);
-
-						if (_type == simdjson::internal::tape_type::END_ARRAY || _type == simdjson::internal::tape_type::END_OBJECT) {
-							is_now_comma = false; //std::cout << "1-i " << i << "\n";
-							//
-						}
-					}
-					else {
-						is_now_comma = false;
-					}
 
 					if (token_arr_start + i > 1) {
 						const simdjson::internal::tape_type before_type = 
-							get_type(buf[imple->structural_indexes[token_arr_start + i - 1]]);
+							get_type(&buf[imple->structural_indexes[token_arr_start + i - 1]]);
 
 						if (before_type == simdjson::internal::tape_type::START_ARRAY || before_type == simdjson::internal::tape_type::START_OBJECT) {
 							is_now_comma = false; //std::cout << "2-i " << i << "\n";
@@ -1412,12 +1402,12 @@ namespace claujson {
 
 					if (!is_now_comma && type == simdjson::internal::tape_type::COMMA) {
 						std::cout << "now is not comma\n";
-						exit(1);
+						exit(112);
 						//
 					}
 					if (is_now_comma && type != simdjson::internal::tape_type::COMMA) {
 						std::cout << "is now comma... but not..\n";
-						exit(1);
+						exit(113);
 					}
 
 
@@ -1426,31 +1416,32 @@ namespace claujson {
 					if (type == simdjson::internal::tape_type::COMMA) {
 						if (token_arr_start + i + 1 < imple->n_structural_indexes) {
 							const simdjson::internal::tape_type _type =
-								get_type(buf[imple->structural_indexes[token_arr_start + i + 1]]);
+								get_type(&buf[imple->structural_indexes[token_arr_start + i + 1]]);
 
 							if (_type == simdjson::internal::tape_type::END_ARRAY || _type == simdjson::internal::tape_type::END_OBJECT) {
-								exit(1);
+								exit(11);
 								//
 							}
 							else if (_type == simdjson::internal::tape_type::COLON) {
-								exit(1);
+								exit(12);
 							}
 
 							continue;
 						}
 						else {
-							exit(1);
+							exit(13);
 						}
 					}
 
 					if (type == simdjson::internal::tape_type::COLON) {
-						exit(1);
+						exit(14);
 						//
 					}
 
 					switch (type) {
 					case simdjson::internal::tape_type::END_ARRAY:
 					case simdjson::internal::tape_type::END_OBJECT:
+
 					case simdjson::internal::tape_type::STRING:
 					case simdjson::internal::tape_type::INT64:
 					case simdjson::internal::tape_type::UINT64:
@@ -1458,8 +1449,24 @@ namespace claujson {
 					case simdjson::internal::tape_type::TRUE_VALUE:
 					case simdjson::internal::tape_type::FALSE_VALUE:
 					case simdjson::internal::tape_type::NULL_VALUE:
-						is_now_comma = true;  //std::cout << "3-i " << i << "\n";
+					case simdjson::internal::tape_type::NONE:
+						is_now_comma = true; // std::cout << "3-i " << i << "\n";
 						break;
+					}
+
+					if (token_arr_start + i + 1 < imple->n_structural_indexes) {
+						const simdjson::internal::tape_type _type =
+							get_type(&buf[imple->structural_indexes[token_arr_start + i + 1]]);
+
+						//std::cout << "chk " << (int)get_type(buf[imple->structural_indexes[token_arr_start + i + 1]]) << "\n";
+
+						if (_type == simdjson::internal::tape_type::END_ARRAY || _type == simdjson::internal::tape_type::END_OBJECT) {
+							is_now_comma = false; //std::cout << "1-i " << i << "\n";
+							//
+						}
+					}
+					else {
+						is_now_comma = false;
 					}
 
 					// Left 1
@@ -1475,14 +1482,17 @@ namespace claujson {
 								nestedUT[braceNum]->reserve_data_list(nestedUT[braceNum]->get_data_size() + Vec.size() / 2);
 
 								if (Vec.size() % 2 == 1) {
+									std::cout << "Vec.size()%2==1\n";
 									exit(1);
 								}
 
 								for (size_t x = 0; x < Vec.size(); x += 2) {
 									if (!Vec[x].is_key) {
+										std::cout << "vec[x].is not key\n";
 										exit(1);
 									}
 									if (Vec[x + 1].is_key) {
+										std::cout << "vec[x].is key\n";
 										exit(1);
 									}
 									nestedUT[braceNum]->add_item_type(_pool->Alloc(), (Vec[x].idx), Vec[x].idx2, Vec[x].len,
@@ -1496,6 +1506,7 @@ namespace claujson {
 
 								for (size_t x = 0; x < Vec.size(); x += 1) {
 									if (Vec[x].is_key) {
+										std::cout << "Vec[x].iskey\n";
 										exit(1);
 									}
 									nestedUT[braceNum]->add_item_type(_pool->Alloc(), (Vec[x].idx), Vec[x].idx2, Vec[x].len, buf, string_buf, Vec[x].id);
@@ -1565,6 +1576,7 @@ namespace claujson {
 										exit(1);
 									}
 									if (Vec[x + 1].is_key) {
+										std::cout << "is key\n";
 										exit(1);
 									}
 
@@ -1579,7 +1591,8 @@ namespace claujson {
 
 								for (auto& x : Vec) {
 									if (x.is_key) {
-										exit(1);
+										
+										exit(1111);
 									}
 
 									nestedUT[braceNum]->add_item_type(_pool->Alloc(), (x.idx), x.idx2, x.len, buf, string_buf, x.id);
@@ -1657,7 +1670,7 @@ namespace claujson {
 									
 								is_now_comma = false;
 								is_before_comma = false;
-								//std::cout << "4-i " << i << "\n";
+							//	std::cout << "4-i " << i << "\n";
 							}
 							else {	
 								Vec.push_back(std::move(data));
@@ -1685,16 +1698,16 @@ namespace claujson {
 				if (Vec[0].is_key) {
 					for (size_t x = 0; x < Vec.size(); x += 2) {
 						if (!Vec[x].is_key) {
-							exit(1);
+							exit(112);
 						}
 
 						if (Vec.size() % 2 == 1) {
-							exit(1);
+							exit(113);
 						}
 
 
 						if (Vec[x + 1].is_key) {
-							exit(1);
+							exit(114);
 						}
 
 						nestedUT[braceNum]->add_item_type(_pool->Alloc(), Vec[x].idx, Vec[x].idx2, Vec[x].len, Vec[x +1].idx,Vec[x+1].idx2, Vec[x+1].len,

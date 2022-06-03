@@ -48,9 +48,6 @@ int main(int argc, char* argv[])
 			return 2;
 		}
 		
-		//std::vector<claujson::Block> blocks2{ claujson::Block{0, (int64_t)x.second}};
-		//claujson::PoolManager poolManager2{};
-
 		int b = clock();
 		std::cout << "total " << b - a << "ms\n";
 		//claujson::LoadData::_save(std::cout, &ut);
