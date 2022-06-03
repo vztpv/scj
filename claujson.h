@@ -40,11 +40,17 @@ namespace claujson {
 
 	class PoolManager {
 	private:
+		int no = -1;
 		UserType* pool = nullptr;
 		Block block;
 		UserType* dead_list_start = nullptr;
 		std::vector<UserType*> outOfPool;
 	public:
+
+		bool is_full() const { // excpet outOFPool
+			return dead_list_start == nullptr && block.size == 0;
+		}
+
 		enum class Type {
 			FROM_STATIC = 0, // no dynamic allocation.
 			FROM_POOL, // calloc + free
@@ -55,20 +61,17 @@ namespace claujson {
 			//std::cout << "default";
 		}
 
-		explicit PoolManager(UserType* pool, const Block& block) {
+		explicit PoolManager(UserType* pool, const Block& block, int no) {
 			this->pool = pool;
 			this->block = (block);
-
+			this->no = no;
 			//std::cout << blocks[0].start << " || " << blocks[0].size << "\n";
 		}
 
 		INLINE void Clear();
 
 		// init - first time only Blocks... -> no Blocks... ?
-		void AddBlock(uint64_t start, uint64_t size) {
-			Block block{ start, size };
-			this->block = (block);
-		}
+
 
 		INLINE UserType* Alloc();
 		INLINE void DeAlloc(UserType* ut);
@@ -555,7 +558,7 @@ namespace claujson {
 	class UserType {
 		//friend UserType* ChkPool(UserType*& node, PoolManager& manager);
 		//uint8_t padding[24]; ?
-
+		
 	private:
 		static INLINE UserType* make_user_type(UserType* pool, int type) {
 			new (pool) UserType(ItemType(), type);
@@ -659,6 +662,9 @@ namespace claujson {
 		UserType* next_dead = nullptr; // for linked list.
 
 		friend PoolManager;
+
+
+		int alloc_no = -1;
 
 		PoolManager::Type alloc_type;
 
@@ -1170,6 +1176,7 @@ namespace claujson {
 			//new (x) UserType();
 
 			x->alloc_type = PoolManager::Type::FROM_POOL;
+			x->alloc_no = no;
 			return x;
 		}
 
@@ -1185,6 +1192,7 @@ namespace claujson {
 				//new (x) UserType();
 				
 				x->alloc_type = PoolManager::Type::FROM_POOL;
+				x->alloc_no = no;
 				return x;
 			}
 	//	}
@@ -1193,6 +1201,7 @@ namespace claujson {
 		outOfPool.push_back(new UserType());
 		outOfPool.back()->alloc_type = PoolManager::Type::FROM_NEW;
 		outOfPool.back()->alloc_idx = outOfPool.size() - 1;
+		outOfPool.back()->alloc_no = no;
 		return outOfPool.back();
 	}
 
@@ -1277,6 +1286,7 @@ namespace claujson {
 
 				if (ut_next && _ut == *ut_next) {
 					*ut_next = _next;
+
 					chk_ut_next = true;
 
 					std::cout << "chked in merge...\n";
@@ -1288,7 +1298,7 @@ namespace claujson {
 				for (size_t i = 0; i < _size; ++i) {
 					if (_ut->get_data_list(i)->is_user_type()) {
 						if (((UserType*)_ut->get_data_list(i))->is_virtual()) {
-							//_ut->get_user_type_list(i)->used();
+							// dealloc virtual node?
 						}
 						else {
 							_next->LinkUserType(_ut->get_data_list(i));
@@ -1814,10 +1824,7 @@ namespace claujson {
 				std::vector<class UserType*> next(pivots.size() - 1, nullptr);
 				{
 
-					std::vector<class UserType> __global(pivots.size() - 1);
-					for (int i = 0; i < __global.size(); ++i) {
-						__global[i].type = -2;
-					}
+					
 
 					std::vector<std::thread> thr(pivots.size() - 1);
 
@@ -1826,13 +1833,27 @@ namespace claujson {
 					std::vector<int> err(pivots.size() - 1, 0);
 
 					poolManagers.resize(pivots.size() - 1);
+					poolManagers[0] = (PoolManager(pool, Block(0, pool_length / (pivots.size() - 1)), 0));
+					
+					std::vector<class UserType*> __global(pivots.size() - 1);
+					for (int i = 0; i < __global.size(); ++i) {
+						__global[i] = poolManagers[i].Alloc();
+						new (__global[i]) UserType();
+						__global[i]->type = -2;
+					}
+
+					for (size_t i = 1; i < pivots.size() - 1; ++i) {
+						Block temp(pool_length / (pivots.size() - 1) * (i), pool_length / (pivots.size() - 1) * (i + 1) - pool_length / (pivots.size() - 1) * (i));
+						poolManagers[i] = (PoolManager(pool + pool_length / (pivots.size() - 1) * (i), temp, i));
+					}
+					
 					{
 						int64_t idx = pivots[1] - pivots[0];
 						int64_t _token_arr_len = idx;
 
-						poolManagers[0] = (PoolManager(pool, Block(0, pool_length / (pivots.size() - 1))));
+					
 
-						thr[0] = std::thread(__LoadData, &poolManagers[0], (buf), buf_len, (string_buf), (imple), start[0], _token_arr_len, &__global[0], 0, 0,
+						thr[0] = std::thread(__LoadData, &poolManagers[0], (buf), buf_len, (string_buf), (imple), start[0], _token_arr_len, __global[0], 0, 0,
 							&next[0], &err[0], 0);
 						//HANDLE th = thr[0].native_handle();
 						//SetThreadPriority(th, THREAD_PRIORITY_HIGHEST);
@@ -1841,10 +1862,7 @@ namespace claujson {
 					for (size_t i = 1; i < pivots.size() - 1; ++i) {
 						int64_t _token_arr_len = pivots[i + 1] - pivots[i];
 
-						Block temp(pool_length / (pivots.size() - 1) * (i), pool_length / (pivots.size() - 1) * (i + 1) - pool_length / (pivots.size() - 1) * (i));
-						poolManagers[i] = (PoolManager(pool + pool_length / (pivots.size() -1) * (i), temp));
-
-						thr[i] = std::thread(__LoadData, &poolManagers[i], (buf), buf_len, (string_buf), (imple), pivots[i], _token_arr_len, &__global[i], 0, 0,
+						thr[i] = std::thread(__LoadData, &poolManagers[i], (buf), buf_len, (string_buf), (imple), pivots[i], _token_arr_len, __global[i], 0, 0,
 							&next[i], &err[i], i);
 
 						//HANDLE th = thr[i].native_handle();
@@ -1891,7 +1909,7 @@ namespace claujson {
 						auto x = next.begin();
 						auto y = __global.begin();
 						while (true) {
-							if (y->get_data_size() == 0) {
+							if ((*y)->get_data_size() == 0) {
 								chk[i] = 1;
 							}
 
@@ -1921,8 +1939,8 @@ namespace claujson {
 							}
 						}
 
-						if (__global[start].get_data_size() > 0 && __global[start].get_data_list(0)->is_user_type()
-							&& ((UserType*)__global[start].get_data_list(0))->is_virtual()) {
+						if (__global[start]->get_data_size() > 0 && __global[start]->get_data_list(0)->is_user_type()
+							&& ((UserType*)__global[start]->get_data_list(0))->is_virtual()) {
 							std::cout << "not valid file1\n";
 							throw 1;
 						}
@@ -1933,7 +1951,7 @@ namespace claujson {
 
 
 
-						int err = Merge(&_global, &__global[start], &next[start]);
+						int err = Merge(&_global, __global[start], &next[start]);
 						if (-1 == err || (pivots.size() == 0 && 1 == err)) {
 							std::cout << "not valid file3\n";
 							throw 3;
@@ -1954,7 +1972,7 @@ namespace claujson {
 								}
 							}
 
-							int err = Merge(next[before], &__global[i], &next[i]);
+							int err = Merge(next[before], __global[i], &next[i]);
 
 							if (-1 == err) {
 								std::cout << "chk " << i << " " << __global.size() << "\n";
