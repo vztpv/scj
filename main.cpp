@@ -42,7 +42,7 @@ int main(int argc, char* argv[])
 		int a = clock();
 		std::vector<claujson::PoolManager> poolManagers; // using pool manager, add Item or remove
 
-		auto x = claujson::Parse(argv[1], 0, &ut, poolManagers);
+		auto x = claujson::Parse(argv[1], 64, &ut, poolManagers);
 		if (!x.first) {
 			std::cout << "fail\n";
 			return 2;
@@ -50,6 +50,11 @@ int main(int argc, char* argv[])
 		
 		int b = clock();
 		std::cout << "total " << b - a << "ms\n";
+
+		
+
+
+
 		//claujson::LoadData::_save(std::cout, &ut);
 		//claujson::LoadData::save(std::cout, ut);
 		//claujson::LoadData::save("output3.json", ut);

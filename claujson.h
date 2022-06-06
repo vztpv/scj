@@ -636,6 +636,8 @@ namespace claujson {
 		}
 
 		UserType* clone() const {
+			//std::cout << "clone";
+
 			UserType* temp = new UserType(this->value);
 
 			temp->type = this->type;
@@ -1218,8 +1220,8 @@ namespace claujson {
 
 namespace claujson {
 
-	inline simdjson::internal::tape_type get_type(char* x) {
-		switch (*x) {
+	inline simdjson::internal::tape_type get_type(char x) {
+		switch (x) {
 		case '-':
 		case '0':
 		case '1': case '2': case '3': case '4':
@@ -1234,12 +1236,12 @@ namespace claujson {
 		case '[':
 		case '}':
 		case ']':
-			return	(simdjson::internal::tape_type)(*x);
+			return	(simdjson::internal::tape_type)(x);
 			break;
 		case ':':
 		case ',':
 
-			return	(simdjson::internal::tape_type)(*x);
+			return	(simdjson::internal::tape_type)(x);
 			break;
 		}
 		return simdjson::internal::tape_type::NONE;
@@ -1338,7 +1340,7 @@ namespace claujson {
 			int64_t token_arr_start, size_t token_arr_len, class UserType* _global,
 			int start_state, int last_state, class UserType** next, int* err, int no)
 		{
-			//int a = clock();
+			int a = clock();
 
 			simdjson::dom::parser test;
 
@@ -1365,7 +1367,7 @@ namespace claujson {
 
 			if (token_arr_start > 0) {
 				const simdjson::internal::tape_type before_type = // next_type
-					get_type(&buf[imple->structural_indexes[token_arr_start - 1]]);
+					get_type(buf[imple->structural_indexes[token_arr_start - 1]]);
 
 				is_before_comma = before_type == simdjson::internal::tape_type::COMMA;
 			}
@@ -1373,7 +1375,7 @@ namespace claujson {
 
 			for (int64_t i = 0; i < token_arr_len; ++i) {
 
-				const simdjson::internal::tape_type type = get_type(&buf[imple->structural_indexes[token_arr_start + i]]);
+				const simdjson::internal::tape_type type = get_type(buf[imple->structural_indexes[token_arr_start + i]]);
 
 				switch (state)
 				{
@@ -1388,7 +1390,7 @@ namespace claujson {
 
 					if (token_arr_start + i > 1) {
 						const simdjson::internal::tape_type before_type =
-							get_type(&buf[imple->structural_indexes[token_arr_start + i - 1]]);
+							get_type(buf[imple->structural_indexes[token_arr_start + i - 1]]);
 
 						if (before_type == simdjson::internal::tape_type::START_ARRAY || before_type == simdjson::internal::tape_type::START_OBJECT) {
 							is_now_comma = false; //std::cout << "2-i " << i << "\n";
@@ -1415,7 +1417,7 @@ namespace claujson {
 					if (type == simdjson::internal::tape_type::COMMA) {
 						if (token_arr_start + i + 1 < imple->n_structural_indexes) {
 							const simdjson::internal::tape_type _type =
-								get_type(&buf[imple->structural_indexes[token_arr_start + i + 1]]);
+								get_type(buf[imple->structural_indexes[token_arr_start + i + 1]]);
 
 							if (_type == simdjson::internal::tape_type::END_ARRAY || _type == simdjson::internal::tape_type::END_OBJECT) {
 								exit(11);
@@ -1455,7 +1457,7 @@ namespace claujson {
 
 					if (token_arr_start + i + 1 < imple->n_structural_indexes) {
 						const simdjson::internal::tape_type _type =
-							get_type(&buf[imple->structural_indexes[token_arr_start + i + 1]]);
+							get_type(buf[imple->structural_indexes[token_arr_start + i + 1]]);
 
 						//std::cout << "chk " << (int)get_type(buf[imple->structural_indexes[token_arr_start + i + 1]]) << "\n";
 
@@ -1735,7 +1737,7 @@ namespace claujson {
 			}
 
 			//after_pool = pool;
-			//int b = clock();
+			int b = clock();
 			//std::cout << "parse thread " << b - a << "ms\n";
 			return true;
 		}
@@ -1765,19 +1767,21 @@ namespace claujson {
 			simdjson::internal::dom_parser_implementation* imple, int64_t& length,
 			std::vector<int64_t>& start, const int parse_num, std::vector<PoolManager>& poolManagers) // first, strVec.empty() must be true!!
 		{
-			// chk clear?
-			poolManagers.clear();
-
-			const int pivot_num = parse_num - 1;
-			//size_t token_arr_len = length; // size?
-
-			class UserType* before_next = nullptr;
-			class UserType _global;
-
-			bool first = true;
-			int64_t sum = 0;
-
+			int a__ = clock();
 			{
+				// chk clear?
+				poolManagers.clear();
+
+				const int pivot_num = parse_num - 1;
+				//size_t token_arr_len = length; // size?
+
+				class UserType* before_next = nullptr;
+				class UserType _global;
+
+				bool first = true;
+				int64_t sum = 0;
+
+				{ int a_ = clock();
 				std::set<int64_t> _pivots;
 				std::vector<int64_t> pivots;
 				//const int64_t num = token_arr_len; //
@@ -1809,7 +1813,8 @@ namespace claujson {
 					pivots.push_back(start[0]);
 					pivots.push_back(length);
 				}
-
+				int b_ = clock();
+				//std::cout << "pivots.. " << b_ - a_ << "ms\n";
 				std::vector<class UserType*> next(pivots.size() - 1, nullptr);
 				{
 
@@ -1818,13 +1823,15 @@ namespace claujson {
 						__global[i].type = -2;
 					}
 
-					std::vector<std::thread> thr(pivots.size() - 1);
 
-					std::vector<class UserType*> after_pool(pivots.size() - 1, nullptr);
+					std::vector<std::thread> thr(pivots.size()-1);
 
+					
 					std::vector<int> err(pivots.size() - 1, 0);
 
 					poolManagers.resize(pivots.size() - 1);
+
+					int c1 = clock();
 					{
 						int64_t idx = pivots[1] - pivots[0];
 						int64_t _token_arr_len = idx;
@@ -1849,7 +1856,8 @@ namespace claujson {
 						//HANDLE th = thr[i].native_handle();
 						//SetThreadPriority(th, THREAD_PRIORITY_HIGHEST);
 					}
-
+					int c2 = clock();
+				//	std::cout << "chk... " << c2 - c1 << "\n";
 
 					auto a = std::chrono::steady_clock::now();
 
@@ -1981,18 +1989,23 @@ namespace claujson {
 					before_next = next.back();
 
 					auto c = std::chrono::steady_clock::now();
-					auto dur2 = std::chrono::duration_cast<std::chrono::nanoseconds>(c - b);
-					std::cout << "parse2 " << dur2.count() << "ns\n";
+					auto dur2 = std::chrono::duration_cast<std::chrono::milliseconds>(c - b);
+					std::cout << "parse2 " << dur2.count() << "ms\n";
 				}
+				}
+				int a = clock();
+
+				Merge(&global, &_global, nullptr);
+
+				///global = std::move(_global);
+				int b = clock();
+				//std::cout << "chk " << b - a << "ms\n";
+
+			//	std::cout << clock() - a__ << "ms\n";
 			}
-			//int a = clock();
-
-			Merge(&global, &_global, nullptr);
-
-			/// global = std::move(_global);
-			//int b = clock();
-			//std::cout << "chk " << b - a << "ms\n";
+		//	std::cout << clock() - a__ << "ms\n";
 			return true;
+
 		}
 		static bool parse(claujson::UserType* pool, int64_t pool_length, class UserType& global, char* buf, size_t buf_len,
 			uint8_t* string_buf,
@@ -2520,7 +2533,7 @@ namespace claujson {
 			std::cout << b - a << "ms\n";
 
 			start[thr_num] = length;
-
+			
 			pool = (claujson::UserType*)calloc(length / 2 + 1, sizeof(claujson::UserType));
 
 			if (false == claujson::LoadData::parse(pool, length / 2 + 1, *ut, buf.get(), buf_len, string_buf.get(), imple.get(), length, start, thr_num, pool_managers)) // 0 : use all thread..
