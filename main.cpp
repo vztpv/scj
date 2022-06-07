@@ -35,8 +35,9 @@ namespace claujson {
 
 int main(int argc, char* argv[])
 {
-
+	std::cout << sizeof(claujson::ItemType) << "\n";
 	std::cout << sizeof(claujson::UserType) << "\n";
+	
 	claujson::UserType ut;
 	try {
 		int a = clock();
@@ -57,7 +58,7 @@ int main(int argc, char* argv[])
 
 		//claujson::LoadData::_save(std::cout, &ut);
 		//claujson::LoadData::save(std::cout, ut);
-		//claujson::LoadData::save("output3.json", ut);
+		//claujson::LoadData::save("output5.json", ut);
 		int c = clock();
 		std::cout << c - b << "ms\n";
 

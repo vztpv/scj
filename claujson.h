@@ -79,33 +79,41 @@ namespace claujson {
 
 	class Data {
 	public:
+		union {
+			long long int_val = 0;
+			unsigned long long uint_val;
+			double float_val;
+			std::string* str_val; // const
+		};
+
 		simdjson::internal::tape_type type;
 
-		bool is_key = false;
-
-		long long int_val = 0;
-		unsigned long long uint_val = 0;
-		double float_val = 0;
+		//bool is_key = false;
 	private:
-		std::string* str_val = nullptr; // const
 	public:
 		void clear() {
-			type = simdjson::internal::tape_type::ROOT;
-			is_key = false;
-			int_val = 0;
-			uint_val = 0;
-			float_val = 0;
-			if (str_val) {
-				str_val->clear();
+			//is_key = false;
+			
+			if (type == simdjson::internal::tape_type::STRING) {
+				if (str_val) {
+					str_val->clear();
+				}
 			}
+			else {
+				int_val = 0;
+			}
+
+			type = simdjson::internal::tape_type::NONE;
 		}
 
 		const std::string* get_str_val() const {
+			// type check...
 			return str_val;
 		}
 
 		void set_str_val(const std::string& str) {
-			if (str_val) {
+			// type check..
+			if (type == simdjson::internal::tape_type::STRING && str_val) {
 				*str_val = str;
 			}
 			else {
@@ -114,7 +122,8 @@ namespace claujson {
 		}
 
 		void set_str_val(std::string&& str) {
-			if (str_val) {
+			// type check..
+			if (type == simdjson::internal::tape_type::STRING && str_val) {
 				*str_val = std::move(str);
 			}
 			else {
@@ -123,11 +132,13 @@ namespace claujson {
 		}
 
 		void set_str_val(uint8_t* str, size_t len) {
+			// type check..
 			set_str_val(reinterpret_cast<const char*>(str), len);
 		}
 
 		void set_str_val(const char* str, size_t len) {
-			if (str_val) {
+			// type check..
+			if (type == simdjson::internal::tape_type::STRING && str_val) {
 				str_val->assign(str, len);
 			}
 			else {
@@ -136,27 +147,35 @@ namespace claujson {
 		}
 
 		virtual ~Data() {
-			if (str_val) {
+			if (type == simdjson::internal::tape_type::STRING && str_val) {
 				delete str_val;
 			}
 		}
 
 		Data(const Data& other)
-			: type(other.type), int_val(other.int_val), uint_val(other.uint_val), float_val(other.float_val), is_key(other.is_key) {
+			: type(other.type) //, is_key(other.is_key) 
+		{
 			if (type == simdjson::internal::tape_type::STRING) {
 				str_val = new std::string(*other.str_val);
+			}
+			else {
+				int_val = other.int_val;
 			}
 		}
 
 		Data(Data&& other) noexcept
-			: type(other.type), int_val(other.int_val), uint_val(other.uint_val), float_val(other.float_val), is_key(other.is_key) {
+			: type(other.type) //, is_key(other.is_key) 
+		{
 			if (type == simdjson::internal::tape_type::STRING) {
 				str_val = other.str_val;
 				other.str_val = nullptr;
 			}
+			else {
+				std::swap(int_val, other.int_val);
+			}
 		}
 
-		Data() : int_val(0), type(simdjson::internal::tape_type::ROOT) { } // here used as ERROR? or Init...? - ROOT
+		Data() : int_val(0), type(simdjson::internal::tape_type::NONE) { } // here used as ERROR? or Init...? - ROOT
 
 		bool operator==(const Data& other) const {
 			if (this->type == other.type) {
@@ -186,20 +205,25 @@ namespace claujson {
 				return *this;
 			}
 
-			this->type = other.type;
-			this->int_val = other.int_val;
-			this->uint_val = other.uint_val;
-			this->float_val = other.float_val;
-			if (other.str_val) {
-				set_str_val(*other.str_val);
-			}
-			else {
+			if (this->type == simdjson::internal::tape_type::STRING) {
 				if (this->str_val) {
 					delete this->str_val;
 				}
 				this->str_val = nullptr;
 			}
-			this->is_key = other.is_key;
+			
+			this->type = other.type;
+
+			if (this->type == simdjson::internal::tape_type::STRING) {
+				if (other.str_val) {
+					set_str_val(*other.str_val);
+				}
+			}
+			else {
+				this->int_val = other.int_val;
+			}
+
+			//this->is_key = other.is_key;
 
 			return *this;
 		}
@@ -212,10 +236,7 @@ namespace claujson {
 
 			std::swap(this->type, other.type);
 			std::swap(this->int_val, other.int_val);
-			std::swap(this->uint_val, other.uint_val);
-			std::swap(this->float_val, other.float_val);
-			std::swap(this->str_val, other.str_val);
-			std::swap(this->is_key, other.is_key);
+		//	std::swap(this->is_key, other.is_key);
 
 			return *this;
 		}
@@ -384,7 +405,7 @@ namespace simdjson {
 
 	// todo 
 	//- add bool is_key ...
-	INLINE::claujson::Data& Convert(::claujson::Data& data, uint64_t idx, uint64_t idx2, uint64_t len, bool key,
+	INLINE claujson::Data& Convert(::claujson::Data& data, uint64_t idx, uint64_t idx2, uint64_t len, bool key,
 		char* buf, uint8_t* string_buf, uint64_t id) {
 		data.clear();
 
@@ -395,9 +416,9 @@ namespace simdjson {
 		{ // need buf_length?
 			data.type = simdjson::internal::tape_type::STRING;
 
-			if (key) {
-				data.is_key = true;
-			}
+			//if (key) {
+				//data.is_key = true;
+			//}
 
 			if (auto* x = simdjson::SIMDJSON_IMPLEMENTATION::stringparsing::parse_string((uint8_t*)&buf[idx] + 1,
 				&string_buf[idx]); x == nullptr) {
@@ -510,28 +531,29 @@ namespace simdjson {
 
 
 namespace claujson {
+
 	class ItemType {
 	public:
 		Data key;
 		Data data;
-
+		bool has_key = false;
 	public:
 		ItemType() { }
 
-		ItemType(const Data& key, const Data& data) : key(key), data(data)
+		ItemType(const Data& key, const Data& data, bool has_key) : key(key), data(data), has_key(has_key)
 		{
 			//
 		}
 
-		ItemType(Data&& key, Data&& data) noexcept : key(std::move(key)), data(std::move(data))
+		ItemType(Data&& key, Data&& data, bool has_key) noexcept : key(std::move(key)), data(std::move(data)), has_key(has_key)
 		{
 			//
 		}
 
-		ItemType(const ItemType& other) : key(other.key), data(other.data) {
+		ItemType(const ItemType& other) : key(other.key), data(other.data),  has_key(other.has_key) {
 			//
 		}
-		ItemType(ItemType&& other) noexcept : key(std::move(other.key)), data(std::move(other.data))
+		ItemType(ItemType&& other) noexcept : key(std::move(other.key)), data(std::move(other.data)), has_key(other.has_key)
 		{
 			//
 		}
@@ -539,6 +561,7 @@ namespace claujson {
 		ItemType& operator=(ItemType&& other) noexcept {
 			std::swap(key, other.key);
 			std::swap(data, other.data);
+			std::swap(has_key, other.has_key);
 
 			return *this;
 		}
@@ -546,6 +569,7 @@ namespace claujson {
 		ItemType& operator=(const ItemType& other) {
 			key = (other.key);
 			data = (other.data);
+			has_key = other.has_key;
 
 			return *this;
 		}
@@ -563,7 +587,7 @@ namespace claujson {
 		}
 
 		static INLINE UserType* make_user_type(UserType* pool, Data&& name, int type) {
-			new (pool) UserType(ItemType(std::move(name), Data()), type);
+			new (pool) UserType(ItemType(std::move(name), Data(), true), type);
 			pool->alloc_type = PoolManager::Type::FROM_POOL;
 			return pool;
 		}
@@ -573,7 +597,7 @@ namespace claujson {
 			char* buf, uint8_t* string_buf, int type, uint64_t id) {
 			Data temp;
 			simdjson::Convert(temp, idx, idx2, len, key, buf, string_buf, id);
-			new (pool) UserType(std::move(temp), Data(), type);
+			new (pool) UserType(std::move(temp), Data(), true, type);
 			pool->alloc_type = PoolManager::Type::FROM_POOL;
 			return pool;
 		}
@@ -586,7 +610,7 @@ namespace claujson {
 			simdjson::Convert(temp, idx11, idx12, len1, key1, buf, string_buf, id);
 			simdjson::Convert(temp2, idx21, idx22, len2, key2, buf, string_buf, id2);
 
-			new (pool) UserType(std::move(temp), std::move(temp2), 4);
+			new (pool) UserType(std::move(temp), std::move(temp2), true, 4);
 
 			pool->alloc_type = PoolManager::Type::FROM_POOL;
 			return pool;
@@ -598,19 +622,26 @@ namespace claujson {
 			Data temp, temp2;
 
 			simdjson::Convert(temp2, idx21, idx22, len2, false, buf, string_buf, id);
-			new (pool) UserType(std::move(temp), std::move(temp2), 4);
+			new (pool) UserType(std::move(temp), std::move(temp2), false, 4);
 			pool->alloc_type = PoolManager::Type::FROM_POOL;
 			return pool;
 		}
 
 		static INLINE UserType* make_item_type(UserType* pool, Data&& name, Data&& data) {
-			new (pool) UserType(std::move(name), std::move(data), 4);
+			new (pool) UserType(std::move(name), std::move(data), true, 4);
 			pool->alloc_type = PoolManager::Type::FROM_POOL;
 			return pool;
 		}
 
 		static INLINE UserType* make_item_type(UserType* pool, const Data& name, const Data& data) {
-			new (pool) UserType(name, data, 4);
+			new (pool) UserType(name, data, true, 4);
+			pool->alloc_type = PoolManager::Type::FROM_POOL;
+			return pool;
+		}
+
+
+		static INLINE UserType* make_item_type(UserType* pool, const Data& data) {
+			new (pool) UserType(Data(), data, false, 4);
 			pool->alloc_type = PoolManager::Type::FROM_POOL;
 			return pool;
 		}
@@ -638,7 +669,7 @@ namespace claujson {
 		UserType* clone() const {
 			//std::cout << "clone";
 
-			UserType* temp = new UserType(this->value);
+			UserType* temp = new UserType(this->value, this->type);
 
 			temp->type = this->type;
 
@@ -655,6 +686,9 @@ namespace claujson {
 		}
 
 	private:
+
+		ItemType value; // equal to key
+
 		std::vector<UserType*> data;
 
 		UserType* next_dead = nullptr; // for linked list.
@@ -665,9 +699,10 @@ namespace claujson {
 
 		uint64_t alloc_idx = 0;
 
-		ItemType value; // equal to key
-		int type = -1; // 0 - object, 1 - array, 2 - virtual object, 3 - virtual array, 4 - item, -1 - root, -2 - only in parse...
 		UserType* parent = nullptr; // 
+		
+		int type = -1; // 0 - object, 1 - array, 2 - virtual object, 3 - virtual array, 4 - item, -1 - root, -2 - only in parse...
+		
 	public:
 		//INLINE const static size_t npos = -1; // ?
 		// chk type?
@@ -686,7 +721,7 @@ namespace claujson {
 		// find_ut..
 		UserType* find_ut(std::string_view key) {
 			for (size_t i = 0; i < data.size(); ++i) {
-				if (data[i]->is_user_type() && data[i]->value.key.is_key && *data[i]->value.key.get_str_val() == key) {
+				if (data[i]->is_user_type() && *data[i]->value.key.get_str_val() == key) {
 					return data[i];
 				}
 			}
@@ -695,7 +730,7 @@ namespace claujson {
 
 		const UserType* find_ut(std::string_view key) const {
 			for (size_t i = 0; i < data.size(); ++i) {
-				if (data[i]->is_user_type() && data[i]->value.key.is_key && *data[i]->value.key.get_str_val() == key) {
+				if (data[i]->is_user_type() && *data[i]->value.key.get_str_val() == key) {
 					return data[i];
 				}
 			}
@@ -774,12 +809,11 @@ namespace claujson {
 	private:
 		void LinkUserType(UserType* ut) // friend?
 		{
-			if (is_array() && ut->value.key.is_key) {
-				exit(13);
+			if (this->is_object() && !ut->value.has_key) {
+				exit(1111);
 			}
-			if (is_object() && !ut->value.key.is_key) {
-				std::cout << "this is object..\n";
-				exit(14);
+			else if (this->is_array() && ut->value.has_key) {
+				exit(1112);
 			}
 
 			data.push_back(ut);
@@ -787,31 +821,30 @@ namespace claujson {
 			ut->parent = this;
 		}
 		void LinkItemType(UserType* item) {
-
-			if (is_array() && item->value.key.is_key) {
-				exit(15);
+			if (this->is_object() && !item->value.has_key) {
+				exit(1111);
 			}
-			if (is_object() && !item->value.key.is_key) {
-				exit(16);
+			else if (this->is_array() && item->value.has_key) {
+				exit(1112);
 			}
 
 			this->data.push_back(item);
 		}
 
 	private:
-		UserType(Data&& key, Data&& value, int type = -1) noexcept : value(std::move(key), std::move(value)), type(type) {
+		UserType(Data&& key, Data&& value, bool has_key, int type) noexcept : value(std::move(key), std::move(value), has_key), type(type) {
 			//
 		}
-		UserType(const Data& key, const Data& value, int type = -1) noexcept : value((key), (value)), type(type) {
+		UserType(const Data& key, const Data& value, bool has_key, int type) noexcept : value((key), (value), has_key), type(type) {
 			//
 		}
 
-		UserType(ItemType&& value, int type = -1) noexcept : value(std::move(value)), type(type)
+		UserType(ItemType&& value, int type) noexcept : value(std::move(value)), type(type)
 		{
 			//
 		}
 
-		UserType(const ItemType& value, int type = -1) noexcept : value(value), type(type)
+		UserType(const ItemType& value, int type) noexcept : value(value), type(type)
 		{
 			//
 		}
@@ -2101,7 +2134,7 @@ namespace claujson {
 
 							stream << "\"";
 
-							if (x.key.is_key) {
+							{
 								stream << " : ";
 							}
 						}
@@ -2167,7 +2200,7 @@ namespace claujson {
 
 							stream << "\"";
 
-							if (x.key.is_key) {
+							{
 								stream << " : ";
 							}
 						}
