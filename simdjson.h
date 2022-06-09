@@ -7742,8 +7742,8 @@ inline error_code document::allocate(size_t capacity) noexcept {
   // and we would need capacity/3 * 5 bytes on the string buffer
   size_t string_capacity = SIMDJSON_ROUNDUP_N(5 * capacity / 3 + SIMDJSON_PADDING, 64);
   string_buf.reset( new (std::nothrow) uint8_t[string_capacity]);
-  tape.reset(new (std::nothrow) uint64_t[tape_capacity]);
-  if(!(string_buf && tape)) {
+  //tape.reset(new (std::nothrow) uint64_t[tape_capacity]);
+  if(!(string_buf)) { // }&& tape)) {
     allocated_capacity = 0;
     string_buf.reset();
     tape.reset();
@@ -8692,8 +8692,10 @@ inline simdjson_result<document_stream> parser::load_many(const std::string &pat
 inline simdjson_result<element> parser::parse_into_document(document& provided_doc, const uint8_t *buf, size_t len, bool realloc_if_needed) & noexcept {
   // Important: we need to ensure that document has enough capacity.
   // Important: It is possible that provided_doc is actually the internal 'doc' within the parser!!!
+  // 
   error_code _error = ensure_capacity(provided_doc, len);
   if (_error) { return _error; }
+  
   if (realloc_if_needed) {
     // Make sure we have enough capacity to copy len bytes
     if (!loaded_bytes || _loaded_bytes_capacity < len) {
