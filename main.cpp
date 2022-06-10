@@ -35,110 +35,114 @@ namespace claujson {
 
 int main(int argc, char* argv[])
 {
+	//getchar();
 	std::cout << sizeof(claujson::ItemType) << "\n";
 	std::cout << sizeof(claujson::UserType) << "\n";
-	
-	claujson::UserType ut;
-	try {
-		int a = clock();
-		std::vector<claujson::PoolManager> poolManagers; // using pool manager, add Item or remove
-
-		auto x = claujson::Parse(argv[1], 64, &ut, poolManagers);
-		if (!x.first) {
-			std::cout << "fail\n";
-			return 2;
-		}
-		
-		int b = clock();
-		std::cout << "total " << b - a << "ms\n";
-
-		
-
-
-
-		//claujson::LoadData::_save(std::cout, &ut);
-		//claujson::LoadData::save(std::cout, ut);
-		//claujson::LoadData::save("output5.json", ut);
-		int c = clock();
-		std::cout << c - b << "ms\n";
-
-		//test2(&ut);
-
-		{/*
-			//claujson::ChkPool(ut.get_data_list(0), poolManager2);
+	for (int i = 0; i < 1; ++i) {
+		claujson::UserType ut;
+		try {
+			int a = clock();
 			
-			//poolManager.Clear();
+			auto x = claujson::Parse(argv[1], 64, &ut);
+			if (!x.first) {
+				std::cout << "fail\n";
+				return 2;
+			}
+
+			int b = clock();
+			std::cout << "total " << b - a << "ms\n";
+
+
+
+
 
 			//claujson::LoadData::_save(std::cout, &ut);
-			
-			for (int i = 0; i < 5; ++i)
-			{
-				int a = clock();
-				double sum = 0;
-				int64_t chk = 0;
+			//claujson::LoadData::save(std::cout, ut);
+			//claujson::LoadData::save("output5.json", ut);
+			int c = clock();
+			std::cout << c - b << "ms\n";
 
-				claujson::UserType* A = ut.get_data_list(0)->find_ut("features"sv);
+			//test2(&ut);
 
-				// no l,u,d  any 
-				// true      true
-				// false     true
+			{/*
+				//claujson::ChkPool(ut.get_data_list(0), poolManager2);
 
-				for (auto iter = A->get_data().begin(); iter != A->get_data().end(); ++iter)
+				//poolManager.Clear();
+
+				//claujson::LoadData::_save(std::cout, &ut);
+
+				for (int i = 0; i < 5; ++i)
 				{
-						claujson::UserType* y = (*iter)->find_ut("geometry"sv); // as_array()[t].as_object()["geometry"];
+					int a = clock();
+					double sum = 0;
+					int64_t chk = 0;
 
-						//chk = (int)y;
+					claujson::UserType* A = ut.get_data_list(0)->find_ut("features"sv);
 
-					
-					if(y) {
-					//	chk += y->get_data_size();
-						claujson::UserType* yyy =  y->find_ut("coordinates"sv);
-						
-						//chk += (int)yyy;
-						
-						//if (yyy) {
-							yyy = yyy->get_data_list(0);
-						//}
+					// no l,u,d  any
+					// true      true
+					// false     true
 
-						//if (yyy) {
-							//chk += yyy->get_data_size();
-							for (claujson::UserType* z : yyy->get_data()) {
-								for (claujson::UserType* _z : z->get_data()) {  //size3; ++w2) {
-									if (_z->get_value().data.type == simdjson::internal::tape_type::DOUBLE) {
-										sum += _z->get_value().data.float_val;
+					for (auto iter = A->get_data().begin(); iter != A->get_data().end(); ++iter)
+					{
+							claujson::UserType* y = (*iter)->find_ut("geometry"sv); // as_array()[t].as_object()["geometry"];
+
+							//chk = (int)y;
+
+
+						if(y) {
+						//	chk += y->get_data_size();
+							claujson::UserType* yyy =  y->find_ut("coordinates"sv);
+
+							//chk += (int)yyy;
+
+							//if (yyy) {
+								yyy = yyy->get_data_list(0);
+							//}
+
+							//if (yyy) {
+								//chk += yyy->get_data_size();
+								for (claujson::UserType* z : yyy->get_data()) {
+									for (claujson::UserType* _z : z->get_data()) {  //size3; ++w2) {
+										if (_z->get_value().data.type == simdjson::internal::tape_type::DOUBLE) {
+											sum += _z->get_value().data.float_val;
+										}
 									}
 								}
-							}
-						//}
-						
-						//	//std::cout << dur.count() << "ns\n";
+							//}
+
+							//	//std::cout << dur.count() << "ns\n";
+
+						}
 
 					}
 
-				}
 
+					std::cout << sum << "\n";
+					std::cout << clock() - a << "ms\n";
+					std::cout << "chk " <<  chk << "\n";
+					////std::cout << "time " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << "ms\n";
 
-				std::cout << sum << "\n";
-				std::cout << clock() - a << "ms\n";
-				std::cout << "chk " <<  chk << "\n";
-				////std::cout << "time " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << "ms\n";
-			}*/
+				}*/
+			}
+
+			//getchar();
+
+			bool ok = x.first;
+			
+			//ut.remove_all(poolManager);
+			
+
+			return !ok;
 		}
-		
-		bool ok = nullptr != x.first;
-
-		//ut.remove_all(poolManager);
-		for (int i = 0; i < poolManagers.size(); ++i) {
-			poolManagers[i].Clear();
+		catch (...) {
+			std::cout << "internal error\n";
+			return 1;
 		}
-
-		free(x.first);
-
-		return !ok;
 	}
-	catch (...) {
-		std::cout << "internal error\n";
-		return 1;
-	}
+	
+	//getchar();
+
+	return 0;
 }
 

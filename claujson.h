@@ -27,53 +27,6 @@ namespace claujson {
 
 	class UserType;
 
-	class Block { // Memory? Block
-	public:
-		uint64_t start = 0;
-		uint64_t size = 0;
-	public:
-		Block() { }
-		Block(uint64_t start, uint64_t size) : start(start), size(size) {
-			//std::cout << start << " " << size << "\n";
-		}
-	};
-
-	class PoolManager {
-	private:
-		UserType* pool = nullptr;
-		Block block;
-		UserType* dead_list_start = nullptr;
-		std::vector<UserType*> outOfPool;
-	public:
-		enum class Type {
-			FROM_STATIC = 0, // no dynamic allocation.
-			FROM_POOL, // calloc + free
-			FROM_NEW   // new + delete.
-		};
-
-		explicit PoolManager() {
-			//std::cout << "default";
-		}
-
-		explicit PoolManager(UserType* pool, const Block& block) {
-			this->pool = pool;
-			this->block = (block);
-
-			//std::cout << blocks[0].start << " || " << blocks[0].size << "\n";
-		}
-
-		INLINE void Clear();
-
-		// init - first time only Blocks... -> no Blocks... ?
-		void AddBlock(uint64_t start, uint64_t size) {
-			Block block{ start, size };
-			this->block = (block);
-		}
-
-		INLINE UserType* Alloc();
-		INLINE void DeAlloc(UserType* ut);
-	};
-
 
 	//UserType* ChkPool(UserType*& node, PoolManager& manager);
 
@@ -95,9 +48,8 @@ namespace claujson {
 			//is_key = false;
 			
 			if (type == simdjson::internal::tape_type::STRING) {
-				if (str_val) {
-					str_val->clear();
-				}
+				delete str_val;
+				str_val = nullptr;
 			}
 			else {
 				int_val = 0;
@@ -113,22 +65,30 @@ namespace claujson {
 
 		void set_str_val(const std::string& str) {
 			// type check..
-			if (type == simdjson::internal::tape_type::STRING && str_val) {
-				*str_val = str;
+			if (type != simdjson::internal::tape_type::STRING) {
+				std::cout << "Error in set_str_val\n";
+				return;
 			}
-			else {
-				str_val = new std::string(str);
+
+			if (!str_val) {
+				str_val = new std::string();
 			}
+
+			*str_val = str;
 		}
 
 		void set_str_val(std::string&& str) {
 			// type check..
-			if (type == simdjson::internal::tape_type::STRING && str_val) {
-				*str_val = std::move(str);
+			if (type != simdjson::internal::tape_type::STRING) {
+				std::cout << "Error in set_str_val\n";
+				return;
 			}
-			else {
-				str_val = new std::string(std::move(str));
+
+			if (!str_val) {
+				str_val = new std::string();
 			}
+
+			*str_val = std::move(str);
 		}
 
 		void set_str_val(uint8_t* str, size_t len) {
@@ -138,17 +98,23 @@ namespace claujson {
 
 		void set_str_val(const char* str, size_t len) {
 			// type check..
-			if (type == simdjson::internal::tape_type::STRING && str_val) {
-				str_val->assign(str, len);
+			if (type != simdjson::internal::tape_type::STRING) {
+				std::cout << "Error in set_str_val\n";
+				return;
 			}
-			else {
-				str_val = new std::string(str, len);
+
+			if (!str_val) {
+				str_val = new std::string();
 			}
+
+			str_val->assign(str, len);
 		}
 
 		virtual ~Data() {
 			if (type == simdjson::internal::tape_type::STRING && str_val) {
+				//std::cout << "chk";
 				delete str_val;
+				str_val = nullptr;
 			}
 		}
 
@@ -157,6 +123,7 @@ namespace claujson {
 		{
 			if (type == simdjson::internal::tape_type::STRING) {
 				str_val = new std::string(*other.str_val);
+				
 			}
 			else {
 				int_val = other.int_val;
@@ -166,9 +133,11 @@ namespace claujson {
 		Data(Data&& other) noexcept
 			: type(other.type) //, is_key(other.is_key) 
 		{
+			
 			if (type == simdjson::internal::tape_type::STRING) {
 				str_val = other.str_val;
 				other.str_val = nullptr;
+				other.type = simdjson::internal::tape_type::NONE;
 			}
 			else {
 				std::swap(int_val, other.int_val);
@@ -205,25 +174,21 @@ namespace claujson {
 				return *this;
 			}
 
-			if (this->type == simdjson::internal::tape_type::STRING) {
-				if (this->str_val) {
-					delete this->str_val;
-				}
-				this->str_val = nullptr;
+			if (this->type != simdjson::internal::tape_type::STRING && other.type == simdjson::internal::tape_type::STRING) {
+				this->str_val = new std::string();
+			}
+			else if (this->type == simdjson::internal::tape_type::STRING && other.type != simdjson::internal::tape_type::STRING) {
+				delete this->str_val;
 			}
 			
 			this->type = other.type;
 
 			if (this->type == simdjson::internal::tape_type::STRING) {
-				if (other.str_val) {
-					set_str_val(*other.str_val);
-				}
+				set_str_val(*other.str_val);
 			}
 			else {
 				this->int_val = other.int_val;
 			}
-
-			//this->is_key = other.is_key;
 
 			return *this;
 		}
@@ -233,10 +198,9 @@ namespace claujson {
 			if (this == &other) {
 				return *this;
 			}
-
+			
 			std::swap(this->type, other.type);
 			std::swap(this->int_val, other.int_val);
-		//	std::swap(this->is_key, other.is_key);
 
 			return *this;
 		}
@@ -433,7 +397,6 @@ namespace simdjson {
 
 			// chk token_arr_start + i + 1 >= imple->n_structural_indexes...
 			data.set_str_val(&string_buf[idx], string_length);
-
 		}
 		break;
 		case 't':
@@ -576,87 +539,18 @@ namespace claujson {
 	};
 
 	class UserType {
-		//friend UserType* ChkPool(UserType*& node, PoolManager& manager);
-		//uint8_t padding[24]; ?
-
-	private:
-		static INLINE UserType* make_user_type(UserType* pool, int type) {
-			new (pool) UserType(ItemType(), type);
-			pool->alloc_type = PoolManager::Type::FROM_POOL;
-			return pool;
-		}
-
-		static INLINE UserType* make_user_type(UserType* pool, Data&& name, int type) {
-			new (pool) UserType(ItemType(std::move(name), Data(), true), type);
-			pool->alloc_type = PoolManager::Type::FROM_POOL;
-			return pool;
-		}
-
-
-		static INLINE UserType* make_user_type(UserType* pool, int64_t idx, int64_t idx2, int64_t len, bool key,
-			char* buf, uint8_t* string_buf, int type, uint64_t id) {
-			Data temp;
-			simdjson::Convert(temp, idx, idx2, len, key, buf, string_buf, id);
-			new (pool) UserType(std::move(temp), Data(), true, type);
-			pool->alloc_type = PoolManager::Type::FROM_POOL;
-			return pool;
-		}
-
-		// object element.
-		static INLINE UserType* make_item_type(UserType* pool, int64_t idx11, int64_t idx12, int64_t len1, bool key1, int64_t idx21, int64_t idx22, int64_t len2, bool key2,
-			char* buf, uint8_t* string_buf, uint64_t id, uint64_t id2) {
-			Data temp, temp2;
-
-			simdjson::Convert(temp, idx11, idx12, len1, key1, buf, string_buf, id);
-			simdjson::Convert(temp2, idx21, idx22, len2, key2, buf, string_buf, id2);
-
-			new (pool) UserType(std::move(temp), std::move(temp2), true, 4);
-
-			pool->alloc_type = PoolManager::Type::FROM_POOL;
-			return pool;
-		}
-
-		// array element.
-		static INLINE UserType* make_item_type(UserType* pool, int64_t idx21, int64_t idx22, int64_t len2,
-			char* buf, uint8_t* string_buf, uint64_t id) {
-			Data temp, temp2;
-
-			simdjson::Convert(temp2, idx21, idx22, len2, false, buf, string_buf, id);
-			new (pool) UserType(std::move(temp), std::move(temp2), false, 4);
-			pool->alloc_type = PoolManager::Type::FROM_POOL;
-			return pool;
-		}
-
-		static INLINE UserType* make_item_type(UserType* pool, Data&& name, Data&& data) {
-			new (pool) UserType(std::move(name), std::move(data), true, 4);
-			pool->alloc_type = PoolManager::Type::FROM_POOL;
-			return pool;
-		}
-
-		static INLINE UserType* make_item_type(UserType* pool, const Data& name, const Data& data) {
-			new (pool) UserType(name, data, true, 4);
-			pool->alloc_type = PoolManager::Type::FROM_POOL;
-			return pool;
-		}
-
-
-		static INLINE UserType* make_item_type(UserType* pool, const Data& data) {
-			new (pool) UserType(Data(), data, false, 4);
-			pool->alloc_type = PoolManager::Type::FROM_POOL;
-			return pool;
-		}
+		
 
 	public:
 
-
-		INLINE static UserType* make_object(PoolManager& manager, ItemType&& x) {
-			UserType* temp = manager.Alloc();
+		INLINE static UserType* make_object(ItemType&& x) {
+			UserType* temp = new UserType();
 			new (temp) UserType(std::move(x), 0);
 			return temp;
 		}
 
-		INLINE static UserType* make_array(PoolManager& manager, ItemType&& x) {
-			UserType* temp = manager.Alloc();
+		INLINE static UserType* make_array(ItemType&& x) {
+			UserType* temp = new UserType();
 			new (temp) UserType(std::move(x), 1);
 			return temp;
 		}
@@ -691,17 +585,9 @@ namespace claujson {
 
 		std::vector<UserType*> data;
 
-		UserType* next_dead = nullptr; // for linked list.
-
-		friend PoolManager;
-
-		PoolManager::Type alloc_type;
-
-		uint64_t alloc_idx = 0;
-
 		UserType* parent = nullptr; // 
 		
-		int type = -1; // 0 - object, 1 - array, 2 - virtual object, 3 - virtual array, 4 - item, -1 - root, -2 - only in parse...
+		int type = -1; // 0 - object, 1 - array, 2 - virtual object, 3 - virtual array, 4 - item, -1 - root, -2 - only in parse... -4 ..
 		
 	public:
 		//INLINE const static size_t npos = -1; // ?
@@ -882,7 +768,7 @@ namespace claujson {
 		}
 
 		// name key check?
-		void add_object_element(PoolManager& manager, const claujson::Data& name, const claujson::Data& data) {
+		void add_object_element(const claujson::Data& name, const claujson::Data& data) {
 			// todo - chk this->type == 0 (object) but name is empty
 			// todo - chk this->type == 1 (array) but name is not empty.
 
@@ -893,10 +779,10 @@ namespace claujson {
 				throw "Error not valid json in add_object_element";
 			}
 
-			this->data.push_back(make_item_type(manager.Alloc(), name, data));
+			this->data.push_back(make_object(ItemType(name, data, true)));
 		}
 
-		void add_array_element(PoolManager& manager, const claujson::Data& data) {
+		void add_array_element(const claujson::Data& data) {
 			// todo - chk this->type == 0 (object) but name is empty
 			// todo - chk this->type == 1 (array) but name is not empty.
 
@@ -907,42 +793,23 @@ namespace claujson {
 				throw "Error not valid json in add_array_element";
 			}
 
-			this->data.push_back(make_item_type(manager.Alloc(), Data(), data)); // (Type*)make_item_type(std::move(temp), data));
+			this->data.push_back(make_array(ItemType(Data(), data, false))); // (Type*)make_item_type(std::move(temp), data));
 		}
 
-		void remove_all(PoolManager& manager, UserType* ut) {
-			for (size_t i = 0; i < ut->data.size(); ++i) {
-				if (ut->data[i]) {
-					manager.DeAlloc(ut);
-
-					remove_all(manager, ut->data[i]);
-					ut->data[i] = nullptr;
-				}
-			}
-			ut->data.clear();
-		}
-
-		void remove_all(PoolManager& manager) {
-			remove_all(manager, this);
-		}
-
-	private:
-
-		//todo..
 		void remove_all(UserType* ut) {
 			for (size_t i = 0; i < ut->data.size(); ++i) {
 				if (ut->data[i]) {
-					//remove_all(ut->data[i]);
+					delete ut->data[i];
 					ut->data[i] = nullptr;
 				}
 			}
 			ut->data.clear();
-			ut->value = ItemType();
 		}
 
 		void remove_all() {
 			remove_all(this);
 		}
+
 	public:
 
 		void add_object_with_key(UserType* object) {
@@ -1042,7 +909,7 @@ namespace claujson {
 			return ut;
 		}
 
-		INLINE void add_user_type(UserType* pool, int64_t idx, int64_t idx2, int64_t len, char* buf,
+		INLINE void add_user_type(int64_t idx, int64_t idx2, int64_t len, char* buf,
 			uint8_t* string_buf, int type, uint64_t id) {
 			// todo - chk this->type == 0 (object) but name is empty
 			// todo - chk this->type == 1 (array) but name is not empty.
@@ -1057,13 +924,17 @@ namespace claujson {
 			//if (this->type == -1 && this->data.size() >= 1) {
 			//	throw "Error not valid json in add_user_type";
 			//}
+			
+			Data temp;
+			
+			simdjson::Convert(temp, idx, idx2, len, true, buf, string_buf, id);
 
-			this->data.push_back(make_user_type(pool, idx, idx2, len, true, buf, string_buf, type, id));
+			this->data.push_back(new UserType(ItemType(temp, Data(), true), type));
 
 			((UserType*)this->data.back())->parent = this;
 		}
 
-		INLINE void add_user_type(UserType* pool, int type) {
+		INLINE void add_user_type(int type) {
 			// todo - chk this->type == 0 (object) but name is empty
 			// todo - chk this->type == 1 (array) but name is not empty.
 			// todo - chk this->type == -1 .. one object or one array or data(true or false or null or string or number).
@@ -1077,14 +948,14 @@ namespace claujson {
 			//	throw "Error not valid json in add_user_type";
 			//}
 
-			this->data.push_back(make_user_type(pool, type));
+			this->data.push_back(new UserType(ItemType(), type));
 
 			((UserType*)this->data.back())->parent = this;
 
 		}
 
 		// add item_type in object? key = value
-		INLINE void add_item_type(UserType* pool, int64_t idx11, int64_t idx12, int64_t len1, int64_t idx21, int64_t idx22, int64_t len2,
+		INLINE void add_item_type(int64_t idx11, int64_t idx12, int64_t len1, int64_t idx21, int64_t idx22, int64_t len2,
 			char* buf, uint8_t* string_buf, uint64_t id, uint64_t id2) {
 			// todo - chk this->type == 0 (object) but name is empty
 			// todo - chk this->type == 1 (array) but name is not empty.
@@ -1099,11 +970,18 @@ namespace claujson {
 			//}
 
 			{
-				this->data.push_back(make_item_type(pool, idx11, idx12, len1, true, idx21, idx22, len2, false, buf, string_buf, id, id2));
+				Data temp;
+				Data temp2;
+
+				simdjson::Convert(temp, idx11, idx12, len1, true, buf, string_buf, id);
+				simdjson::Convert(temp2, idx21, idx22, len2, false, buf, string_buf, id2);
+
+
+				this->data.push_back(new UserType(ItemType(temp, temp2, true), 4));
 			}
 		}
 
-		INLINE void add_item_type(UserType* pool, int64_t idx21, int64_t idx22, int64_t len2,
+		INLINE void add_item_type(int64_t idx21, int64_t idx22, int64_t len2,
 			char* buf, uint8_t* string_buf, uint64_t id) {
 			// todo - chk this->type == 0 (object) but name is empty
 			// todo - chk this->type == 1 (array) but name is not empty.
@@ -1118,10 +996,14 @@ namespace claujson {
 			//	throw "Error not valid json in add_item_type";
 			//}
 
-			this->data.push_back(make_item_type(pool, idx21, idx22, len2, buf, string_buf, id));
+			Data temp2;
+
+			simdjson::Convert(temp2, idx21, idx22, len2, false, buf, string_buf, id);
+
+			this->data.push_back(new UserType(ItemType(Data(), temp2, false), 4));
 		}
 
-		INLINE void add_item_type(UserType* pool, const Data& name, const claujson::Data& data) {
+		INLINE void add_item_type(const Data& name, const claujson::Data& data) {
 			// todo - chk this->type == 0 (object) but name is empty
 			// todo - chk this->type == 1 (array) but name is not empty.
 
@@ -1134,10 +1016,10 @@ namespace claujson {
 				//	throw "Error not valid json in add_item_type";
 			//	}
 
-			this->data.push_back(make_item_type(pool, name, data));
+			this->data.push_back(new UserType(name, data, true, 4));
 		}
 
-		INLINE void add_item_type(UserType* pool, const claujson::Data& data) {
+		INLINE void add_item_type(const claujson::Data& data) {
 			// todo - chk this->type == 0 (object) but name is empty
 			// todo - chk this->type == 1 (array) but name is not empty.
 
@@ -1149,7 +1031,7 @@ namespace claujson {
 				exit(1);
 			}
 
-			this->data.push_back(make_item_type(pool, Data(), data));
+			this->data.push_back(new UserType(Data(), data, false, 4));
 		}
 
 	public:
@@ -1166,8 +1048,8 @@ namespace claujson {
 		}
 
 
-		void remove_data_list(PoolManager& manager, size_t idx) {
-			manager.DeAlloc(data[idx]);
+		void remove_data_list(size_t idx) {
+			delete data[idx];
 			data.erase(data.begin() + idx);
 		}
 
@@ -1184,70 +1066,7 @@ namespace claujson {
 	};
 
 
-	INLINE void PoolManager::Clear() {
-		pool = nullptr;
-		//blocks.clear();
-		dead_list_start = nullptr;
-		for (size_t i = 0; i < outOfPool.size(); ++i) {
-			std::cout << i << "th..\n";
-			delete outOfPool[i];
-		}
-		outOfPool.clear();
-	}
-
-	INLINE UserType* PoolManager::Alloc() {
-		// 1. find space for dead_list.
-		if (dead_list_start) {
-			UserType* x = dead_list_start;
-			dead_list_start = dead_list_start->next_dead;
-
-			//new (x) UserType();
-
-			x->alloc_type = PoolManager::Type::FROM_POOL;
-			return x;
-		}
-
-		// 2. find space for blocks.
-	//	for (uint64_t i = 0; i < blocks.size(); ++i) {
-		if (block.size > 0) {
-			UserType* x = pool;
-			pool++;
-
-			++block.start;
-			--block.size;
-
-			//new (x) UserType();
-
-			x->alloc_type = PoolManager::Type::FROM_POOL;
-			return x;
-		}
-		//	}
-
-			// 3. new in out of pool. (new)
-		outOfPool.push_back(new UserType());
-		outOfPool.back()->alloc_type = PoolManager::Type::FROM_NEW;
-		outOfPool.back()->alloc_idx = outOfPool.size() - 1;
-		return outOfPool.back();
-	}
-
-	INLINE void PoolManager::DeAlloc(UserType* ut) {
-		// 1-1. from pool?
-		if (ut->alloc_type == PoolManager::Type::FROM_POOL) {
-			// 2. add dead_list..
-			ut->next_dead = this->dead_list_start;
-			this->dead_list_start = ut->next_dead;
-		}
-		// 1-2. from_outOfPool?
-		else if (ut->alloc_type == PoolManager::Type::FROM_NEW) {
-			// swap and pop_back..
-			this->outOfPool.back()->alloc_idx = ut->alloc_idx;
-			std::swap(this->outOfPool[ut->alloc_idx], this->outOfPool.back());
-			this->outOfPool.pop_back();
-		}
-		else { // STATIC
-			// nothing.
-		}
-	}
+	
 }
 
 
@@ -1367,7 +1186,7 @@ namespace claujson {
 			bool is_key = false;
 		};
 
-		static bool __LoadData(PoolManager* _pool, char* buf, size_t buf_len,
+		static bool __LoadData(char* buf, size_t buf_len,
 			uint8_t* string_buf,
 			simdjson::internal::dom_parser_implementation* imple,
 			int64_t token_arr_start, size_t token_arr_len, class UserType* _global,
@@ -1529,7 +1348,7 @@ namespace claujson {
 										std::cout << "vec[x].is key\n";
 										exit(1);
 									}
-									nestedUT[braceNum]->add_item_type(_pool->Alloc(), (Vec[x].idx), Vec[x].idx2, Vec[x].len,
+									nestedUT[braceNum]->add_item_type( (Vec[x].idx), Vec[x].idx2, Vec[x].len,
 										(Vec[x + 1].idx), Vec[x + 1].idx2, Vec[x + 1].len,
 										buf, string_buf, Vec[x].id, Vec[x + 1].id);
 									//++pool;
@@ -1543,7 +1362,7 @@ namespace claujson {
 										std::cout << "Vec[x].iskey\n";
 										exit(1);
 									}
-									nestedUT[braceNum]->add_item_type(_pool->Alloc(), (Vec[x].idx), Vec[x].idx2, Vec[x].len, buf, string_buf, Vec[x].id);
+									nestedUT[braceNum]->add_item_type( (Vec[x].idx), Vec[x].idx2, Vec[x].len, buf, string_buf, Vec[x].id);
 									//++pool;
 								}
 							}
@@ -1552,12 +1371,12 @@ namespace claujson {
 						}
 
 						if (key.is_key) {
-							nestedUT[braceNum]->add_user_type(_pool->Alloc(), key.idx, key.idx2, key.len, buf, string_buf,
+							nestedUT[braceNum]->add_user_type( key.idx, key.idx2, key.len, buf, string_buf,
 								type == simdjson::internal::tape_type::START_OBJECT ? 0 : 1, key.id); // object vs array
 							key.is_key = false;// ++pool;
 						}
 						else {
-							nestedUT[braceNum]->add_user_type(_pool->Alloc(), type == simdjson::internal::tape_type::START_OBJECT ? 0 : 1);
+							nestedUT[braceNum]->add_user_type( type == simdjson::internal::tape_type::START_OBJECT ? 0 : 1);
 							//++pool;
 						}
 
@@ -1614,7 +1433,7 @@ namespace claujson {
 										exit(1);
 									}
 
-									nestedUT[braceNum]->add_item_type(_pool->Alloc(), Vec[x].idx, Vec[x].idx2, Vec[x].len,
+									nestedUT[braceNum]->add_item_type( Vec[x].idx, Vec[x].idx2, Vec[x].len,
 										Vec[x + 1].idx, Vec[x + 1].idx2, Vec[x + 1].len, buf, string_buf, Vec[x].id, Vec[x + 1].id);
 									//++pool;9
 
@@ -1629,7 +1448,7 @@ namespace claujson {
 										exit(1111);
 									}
 
-									nestedUT[braceNum]->add_item_type(_pool->Alloc(), (x.idx), x.idx2, x.len, buf, string_buf, x.id);
+									nestedUT[braceNum]->add_item_type( (x.idx), x.idx2, x.len, buf, string_buf, x.id);
 									//++pool;
 								}
 							}
@@ -1641,7 +1460,7 @@ namespace claujson {
 						if (braceNum == 0) {
 							class UserType ut; //
 
-							ut.add_user_type(_pool->Alloc(), type == simdjson::internal::tape_type::END_OBJECT ? 2 : 3); // json -> "var_name" = val  
+							ut.add_user_type( type == simdjson::internal::tape_type::END_OBJECT ? 2 : 3); // json -> "var_name" = val  
 							//++pool;
 
 							for (size_t i = 0; i < nestedUT[braceNum]->get_data_size(); ++i) {
@@ -1744,7 +1563,7 @@ namespace claujson {
 							exit(114);
 						}
 
-						nestedUT[braceNum]->add_item_type(_pool->Alloc(), Vec[x].idx, Vec[x].idx2, Vec[x].len, Vec[x + 1].idx, Vec[x + 1].idx2, Vec[x + 1].len,
+						nestedUT[braceNum]->add_item_type( Vec[x].idx, Vec[x].idx2, Vec[x].len, Vec[x + 1].idx, Vec[x + 1].idx2, Vec[x + 1].len,
 							buf, string_buf, Vec[x].id, Vec[x + 1].id);
 						//++pool;
 					}
@@ -1755,7 +1574,7 @@ namespace claujson {
 							exit(1);
 						}
 
-						nestedUT[braceNum]->add_item_type(_pool->Alloc(), Vec[x].idx, Vec[x].idx2, Vec[x].len, buf, string_buf, Vec[x].id);
+						nestedUT[braceNum]->add_item_type( Vec[x].idx, Vec[x].idx2, Vec[x].len, buf, string_buf, Vec[x].id);
 						//++pool;
 					}
 				}
@@ -1795,16 +1614,15 @@ namespace claujson {
 		}
 	public:
 
-		static bool _LoadData(claujson::UserType* pool, int64_t pool_length, class UserType& global, char* buf, size_t buf_len,
+		static bool _LoadData(class UserType& global, char* buf, size_t buf_len,
 			uint8_t* string_buf,
 			simdjson::internal::dom_parser_implementation* imple, int64_t& length,
-			std::vector<int64_t>& start, const int parse_num, std::vector<PoolManager>& poolManagers) // first, strVec.empty() must be true!!
+			std::vector<int64_t>& start, const int parse_num) // first, strVec.empty() must be true!!
 		{
 			int a__ = clock();
 			{
 				// chk clear?
-				poolManagers.clear();
-
+			
 				const int pivot_num = parse_num - 1;
 				//size_t token_arr_len = length; // size?
 
@@ -1862,16 +1680,13 @@ namespace claujson {
 					
 					std::vector<int> err(pivots.size() - 1, 0);
 
-					poolManagers.resize(pivots.size() - 1);
-
 					int c1 = clock();
 					{
 						int64_t idx = pivots[1] - pivots[0];
 						int64_t _token_arr_len = idx;
 
-						poolManagers[0] = (PoolManager(pool, Block(0, pool_length / (pivots.size() - 1))));
 
-						thr[0] = std::thread(__LoadData, &poolManagers[0], (buf), buf_len, (string_buf), (imple), start[0], _token_arr_len, &__global[0], 0, 0,
+						thr[0] = std::thread(__LoadData, (buf), buf_len, (string_buf), (imple), start[0], _token_arr_len, &__global[0], 0, 0,
 							&next[0], &err[0], 0);
 						//HANDLE th = thr[0].native_handle();
 						//SetThreadPriority(th, THREAD_PRIORITY_HIGHEST);
@@ -1880,10 +1695,7 @@ namespace claujson {
 					for (size_t i = 1; i < pivots.size() - 1; ++i) {
 						int64_t _token_arr_len = pivots[i + 1] - pivots[i];
 
-						Block temp(pool_length / (pivots.size() - 1) * (i), pool_length / (pivots.size() - 1) * (i + 1) - pool_length / (pivots.size() - 1) * (i));
-						poolManagers[i] = (PoolManager(pool + pool_length / (pivots.size() - 1) * (i), temp));
-
-						thr[i] = std::thread(__LoadData, &poolManagers[i], (buf), buf_len, (string_buf), (imple), pivots[i], _token_arr_len, &__global[i], 0, 0,
+						thr[i] = std::thread(__LoadData, (buf), buf_len, (string_buf), (imple), pivots[i], _token_arr_len, &__global[i], 0, 0,
 							&next[i], &err[i], i);
 
 						//HANDLE th = thr[i].native_handle();
@@ -2040,12 +1852,12 @@ namespace claujson {
 			return true;
 
 		}
-		static bool parse(claujson::UserType* pool, int64_t pool_length, class UserType& global, char* buf, size_t buf_len,
+		static bool parse(class UserType& global, char* buf, size_t buf_len,
 			uint8_t* string_buf,
 			simdjson::internal::dom_parser_implementation* imple,
-			int64_t length, std::vector<int64_t>& start, int thr_num, std::vector<PoolManager>& blocks) {
+			int64_t length, std::vector<int64_t>& start, int thr_num) {
 
-			return LoadData::_LoadData(pool, pool_length, global, buf, buf_len, string_buf, imple, length, start, thr_num, blocks);
+			return LoadData::_LoadData(global, buf, buf_len, string_buf, imple, length, start, thr_num);
 		}
 
 
@@ -2387,7 +2199,7 @@ namespace claujson {
 		}
 	};
 
-	INLINE 	std::pair<claujson::UserType*, size_t> Parse(const std::string& fileName, int thr_num, UserType* ut, std::vector<PoolManager>& pool_managers)
+	INLINE 	std::pair<bool, size_t> Parse(const std::string& fileName, int thr_num, UserType* ut)
 	{
 		if (thr_num <= 0) {
 			thr_num = std::thread::hardware_concurrency();
@@ -2396,13 +2208,12 @@ namespace claujson {
 			thr_num = 1;
 		}
 
-		claujson::UserType* pool = nullptr;
 		int64_t length;
 
 		int _ = clock();
 
 		{
-			static simdjson::dom::parser test;
+			 simdjson::dom::parser test;
 
 			auto x = test.load(fileName);
 
@@ -2410,7 +2221,7 @@ namespace claujson {
 				std::cout << "stage1 error : ";
 				std::cout << x.error() << "\n";
 
-				return { nullptr, 0 };
+				return { false, 0 };
 			}
 
 			if (!test.valid) {
@@ -2566,13 +2377,9 @@ namespace claujson {
 			std::cout << b - a << "ms\n";
 
 			start[thr_num] = length;
-			
-			pool = (claujson::UserType*)calloc(length / 2 + 1, sizeof(claujson::UserType));
-
-			if (false == claujson::LoadData::parse(pool, length / 2 + 1, *ut, buf.get(), buf_len, string_buf.get(), imple.get(), length, start, thr_num, pool_managers)) // 0 : use all thread..
+			if (false == claujson::LoadData::parse(*ut, buf.get(), buf_len, string_buf.get(), imple.get(), length, start, thr_num)) // 0 : use all thread..
 			{
-				free(pool);
-				return { nullptr, 0 };
+				return { false, 0 };
 			}
 			int c = clock();
 			std::cout << c - b << "ms\n";
@@ -2582,7 +2389,7 @@ namespace claujson {
 
 		// claujson::LoadData::_save(std::cout, &ut);
 
-		return { pool, length };
+		return  { true, length };
 	}
 
 	INLINE int Parse_One(const std::string& str, Data& data) {
