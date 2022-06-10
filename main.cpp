@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
 	//getchar();
 	std::cout << sizeof(claujson::ItemType) << "\n";
 	std::cout << sizeof(claujson::UserType) << "\n";
-	for (int i = 0; i < 1; ++i) {
+	for (int i = 0; i < 10; ++i) {
 		claujson::UserType ut;
 		try {
 			int a = clock();
@@ -133,7 +133,7 @@ int main(int argc, char* argv[])
 			//ut.remove_all(poolManager);
 			
 
-			return !ok;
+			//return !ok;
 		}
 		catch (...) {
 			std::cout << "internal error\n";

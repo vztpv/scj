@@ -571,7 +571,7 @@ namespace claujson {
 
 			temp->data.reserve(this->data.size());
 
-			for (auto x : this->data) {
+			for (auto& x : this->data) {
 				temp->data.push_back(x->clone());
 				temp->data.back()->parent = temp;
 			}
@@ -637,11 +637,14 @@ namespace claujson {
 
 		//todo - fix? for type, parent, std::swap?
 		UserType(UserType&& other) noexcept {
-			value = std::move(other.value);
+			std::swap(this->value, other.value);
 			std::swap(this->data, other.data);
+			
+			// chk
 			for (auto& x : data) {
 				x->parent = this;
 			}
+
 			std::swap(type, other.type);
 			//parent = std::move(other.parent);//
 		}
@@ -739,7 +742,12 @@ namespace claujson {
 			//
 		}
 		virtual ~UserType() noexcept {
-			//
+			for (size_t i = 0; i < data.size(); ++i) {
+				if (data[i]) {
+					delete data[i];
+					data[i] = nullptr;
+				}
+			}
 		}
 	public:
 
@@ -1050,6 +1058,7 @@ namespace claujson {
 
 		void remove_data_list(size_t idx) {
 			delete data[idx];
+			data[idx] = nullptr;
 			data.erase(data.begin() + idx);
 		}
 
@@ -1149,7 +1158,8 @@ namespace claujson {
 						}
 					}
 					else { // item type.
-						_next->LinkItemType(std::move(_ut->get_data_list(i)));
+						_next->LinkItemType((_ut->get_data_list(i)));
+						_ut->get_data_list(i) = nullptr;
 					}
 				}
 
@@ -1626,7 +1636,6 @@ namespace claujson {
 				const int pivot_num = parse_num - 1;
 				//size_t token_arr_len = length; // size?
 
-				class UserType* before_next = nullptr;
 				class UserType _global;
 
 				bool first = true;
@@ -1830,8 +1839,6 @@ namespace claujson {
 						throw 6;
 					}
 
-
-					before_next = next.back();
 
 					auto c = std::chrono::steady_clock::now();
 					auto dur2 = std::chrono::duration_cast<std::chrono::milliseconds>(c - b);
