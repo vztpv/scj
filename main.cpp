@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
 	//getchar();
 	std::cout << sizeof(claujson::ItemType) << "\n";
 	std::cout << sizeof(claujson::UserType) << "\n";
-	for (int i = 0; i < 10; ++i) {
+	for (int i = 0; i < 1; ++i) {
 		claujson::UserType ut;
 		try {
 			int a = clock();
@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
 
 			//claujson::LoadData::_save(std::cout, &ut);
 			//claujson::LoadData::save(std::cout, ut);
-			//claujson::LoadData::save("output5.json", ut);
+			//claujson::LoadData::save("output6.json", ut);
 			int c = clock();
 			std::cout << c - b << "ms\n";
 

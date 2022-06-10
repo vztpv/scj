@@ -31,15 +31,45 @@ namespace claujson {
 	//UserType* ChkPool(UserType*& node, PoolManager& manager);
 
 	class Data {
-	public:
+	private:
 		union {
-			long long int_val = 0;
-			unsigned long long uint_val;
-			double float_val;
-			std::string* str_val; // const
+			long long _int_val = 0;
+			unsigned long long _uint_val;
+			double _float_val;
+			std::string* _str_val; // const
 		};
 
-		simdjson::internal::tape_type type;
+		simdjson::internal::tape_type _type;
+	
+	public:
+
+		simdjson::internal::tape_type type() const {
+			return _type;
+		}
+
+		long long int_val() const {
+			return _int_val;
+		}
+
+		unsigned long long uint_val() const {
+			return _uint_val;
+		}
+
+		double float_val() const {
+			return _float_val;
+		}
+
+		long long& int_val()  {
+			return _int_val;
+		}
+
+		unsigned long long& uint_val()  {
+			return _uint_val;
+		}
+
+		double& float_val()  {
+			return _float_val;
+		}
 
 		//bool is_key = false;
 	private:
@@ -47,110 +77,98 @@ namespace claujson {
 		void clear() {
 			//is_key = false;
 			
-			if (type == simdjson::internal::tape_type::STRING) {
-				delete str_val;
-				str_val = nullptr;
+			if (_type == simdjson::internal::tape_type::STRING) {
+				delete _str_val;
+				_str_val = nullptr;
 			}
 			else {
-				int_val = 0;
+				_int_val = 0;
 			}
 
-			type = simdjson::internal::tape_type::NONE;
+			_type = simdjson::internal::tape_type::NONE;
 		}
 
 		const std::string* get_str_val() const {
 			// type check...
-			return str_val;
+			return _str_val;
 		}
 
-		void set_str_val(const std::string& str) {
-			// type check..
-			if (type != simdjson::internal::tape_type::STRING) {
-				std::cout << "Error in set_str_val\n";
-				return;
+		void set_int(long long x) {
+			if (_type == simdjson::internal::tape_type::STRING) {
+				delete _str_val;
 			}
-
-			if (!str_val) {
-				str_val = new std::string();
-			}
-
-			*str_val = str;
+			_int_val = x;
 		}
 
-		void set_str_val(std::string&& str) {
-			// type check..
-			if (type != simdjson::internal::tape_type::STRING) {
-				std::cout << "Error in set_str_val\n";
-				return;
+		void set_uint(unsigned long long x) {
+			if (_type == simdjson::internal::tape_type::STRING) {
+				delete _str_val;
 			}
-
-			if (!str_val) {
-				str_val = new std::string();
-			}
-
-			*str_val = std::move(str);
+			_uint_val = x;
 		}
 
-		void set_str_val(uint8_t* str, size_t len) {
-			// type check..
-			set_str_val(reinterpret_cast<const char*>(str), len);
+		void set_float(double x) {
+			if (_type == simdjson::internal::tape_type::STRING) {
+				delete _str_val;
+			}
+			_float_val = x;
 		}
 
-		void set_str_val(const char* str, size_t len) {
-			// type check..
-			if (type != simdjson::internal::tape_type::STRING) {
-				std::cout << "Error in set_str_val\n";
-				return;
+		void set_str(const char* str, size_t len) {
+			if (_type != simdjson::internal::tape_type::STRING) {
+				_str_val = new std::string(str, len);
 			}
-
-			if (!str_val) {
-				str_val = new std::string();
+			else {
+				_str_val->assign(str, len);
 			}
-
-			str_val->assign(str, len);
 		}
 
+		void set_type(simdjson::internal::tape_type type) {
+			this->_type = type;
+		}
+
+	public:
 		virtual ~Data() {
-			if (type == simdjson::internal::tape_type::STRING && str_val) {
+			if (_type == simdjson::internal::tape_type::STRING && _str_val) {
 				//std::cout << "chk";
-				delete str_val;
-				str_val = nullptr;
+				delete _str_val;
+				_str_val = nullptr;
 			}
 		}
 
 		Data(const Data& other)
-			: type(other.type) //, is_key(other.is_key) 
+			: _type(other._type) //, is_key(other.is_key) 
 		{
-			if (type == simdjson::internal::tape_type::STRING) {
-				str_val = new std::string(*other.str_val);
+			if (_type == simdjson::internal::tape_type::STRING) {
+				_str_val = new std::string(*other._str_val);
 				
 			}
 			else {
-				int_val = other.int_val;
+				_int_val = other._int_val;
 			}
 		}
 
 		Data(Data&& other) noexcept
-			: type(other.type) //, is_key(other.is_key) 
+			: _type(other._type) //, is_key(other.is_key) 
 		{
 			
-			if (type == simdjson::internal::tape_type::STRING) {
-				str_val = other.str_val;
-				other.str_val = nullptr;
-				other.type = simdjson::internal::tape_type::NONE;
+			if (_type == simdjson::internal::tape_type::STRING) {
+				_str_val = other._str_val;
+				other._str_val = nullptr;
+				other._type = simdjson::internal::tape_type::NONE;
 			}
 			else {
-				std::swap(int_val, other.int_val);
+				std::swap(_int_val, other._int_val);
 			}
 		}
 
-		Data() : int_val(0), type(simdjson::internal::tape_type::NONE) { } // here used as ERROR? or Init...? - ROOT
+		Data() : _int_val(0), _type(simdjson::internal::tape_type::NONE) { } // here used as ERROR? or Init...? - ROOT
 
 		bool operator==(const Data& other) const {
-			if (this->type == other.type) {
-				switch (this->type) {
+			if (this->_type == other._type) {
+				switch (this->_type) {
 				case simdjson::internal::tape_type::STRING:
-					return *this->str_val == *other.str_val;
+					return *this->_str_val == *other._str_val;
 					break;
 				}
 				return true;
@@ -159,10 +177,10 @@ namespace claujson {
 		}
 
 		bool operator<(const Data& other) const {
-			if (this->type == other.type) {
-				switch (this->type) {
+			if (this->_type == other._type) {
+				switch (this->_type) {
 				case simdjson::internal::tape_type::STRING:
-					return *this->str_val < *other.str_val;
+					return *this->_str_val < *other._str_val;
 					break;
 				}
 			}
@@ -174,20 +192,20 @@ namespace claujson {
 				return *this;
 			}
 
-			if (this->type != simdjson::internal::tape_type::STRING && other.type == simdjson::internal::tape_type::STRING) {
-				this->str_val = new std::string();
+			if (this->_type != simdjson::internal::tape_type::STRING && other._type == simdjson::internal::tape_type::STRING) {
+				this->_str_val = new std::string();
 			}
-			else if (this->type == simdjson::internal::tape_type::STRING && other.type != simdjson::internal::tape_type::STRING) {
-				delete this->str_val;
+			else if (this->_type == simdjson::internal::tape_type::STRING && other._type != simdjson::internal::tape_type::STRING) {
+				delete this->_str_val;
 			}
 			
-			this->type = other.type;
+			this->_type = other._type;
 
-			if (this->type == simdjson::internal::tape_type::STRING) {
-				set_str_val(*other.str_val);
+			if (this->_type == simdjson::internal::tape_type::STRING) {
+				set_str(other._str_val->c_str(), other._str_val->size());
 			}
 			else {
-				this->int_val = other.int_val;
+				this->_int_val = other._int_val;
 			}
 
 			return *this;
@@ -199,26 +217,26 @@ namespace claujson {
 				return *this;
 			}
 			
-			std::swap(this->type, other.type);
-			std::swap(this->int_val, other.int_val);
+			std::swap(this->_type, other._type);
+			std::swap(this->_int_val, other._int_val);
 
 			return *this;
 		}
 
 		friend std::ostream& operator<<(std::ostream& stream, const Data& data) {
 
-			switch (data.type) {
+			switch (data._type) {
 			case simdjson::internal::tape_type::INT64:
-				stream << data.int_val;
+				stream << data._int_val;
 				break;
 			case simdjson::internal::tape_type::UINT64:
-				stream << data.uint_val;
+				stream << data._uint_val;
 				break;
 			case simdjson::internal::tape_type::DOUBLE:
-				stream << data.float_val;
+				stream << data._float_val;
 				break;
 			case simdjson::internal::tape_type::STRING:
-				stream << (*data.str_val);
+				stream << (*data._str_val);
 				break;
 			case simdjson::internal::tape_type::TRUE_VALUE:
 				stream << "true";
@@ -378,7 +396,6 @@ namespace simdjson {
 		switch (buf[idx]) {
 		case '"':
 		{ // need buf_length?
-			data.type = simdjson::internal::tape_type::STRING;
 
 			//if (key) {
 				//data.is_key = true;
@@ -396,7 +413,7 @@ namespace simdjson {
 			}
 
 			// chk token_arr_start + i + 1 >= imple->n_structural_indexes...
-			data.set_str_val(&string_buf[idx], string_length);
+			data.set_str(reinterpret_cast<char*>(&string_buf[idx]), string_length);
 		}
 		break;
 		case 't':
@@ -406,7 +423,7 @@ namespace simdjson {
 				exit(1);
 			}
 
-			data.type = (simdjson::internal::tape_type)buf[idx];
+			data.set_type((simdjson::internal::tape_type)buf[idx]);
 		}
 		break;
 		case 'f':
@@ -414,14 +431,14 @@ namespace simdjson {
 				exit(1);
 			}
 
-			data.type = (simdjson::internal::tape_type)buf[idx];
+			data.set_type((simdjson::internal::tape_type)buf[idx]);
 			break;
 		case 'n':
 			if (!simdjson::SIMDJSON_IMPLEMENTATION::atomparsing::is_valid_null_atom(reinterpret_cast<uint8_t*>(&buf[idx]), idx2 - idx)) {
 				exit(1);
 			}
 
-			data.type = (simdjson::internal::tape_type)buf[idx];
+			data.set_type((simdjson::internal::tape_type)buf[idx]);
 			break;
 		case '-':
 		case '0':
@@ -448,16 +465,25 @@ namespace simdjson {
 				exit(1);
 			}
 
-			data.type = static_cast<simdjson::internal::tape_type>(temp[0] >> 56);
-			switch (data.type) {
+			long long int_val = 0;
+			unsigned long long uint_val = 0;
+			double float_val = 0;
+
+			switch (static_cast<simdjson::internal::tape_type>(temp[0] >> 56)) {
 			case simdjson::internal::tape_type::INT64:
-				memcpy(&data.int_val, &temp[1], sizeof(uint64_t));
+				memcpy(&int_val, &temp[1], sizeof(uint64_t));
+
+				data.set_int(int_val);
 				break;
 			case simdjson::internal::tape_type::UINT64:
-				memcpy(&data.uint_val, &temp[1], sizeof(uint64_t));
+				memcpy(&uint_val, &temp[1], sizeof(uint64_t));
+				
+				data.set_uint(uint_val);
 				break;
 			case simdjson::internal::tape_type::DOUBLE:
-				memcpy(&data.float_val, &temp[1], sizeof(uint64_t));
+				memcpy(&float_val, &temp[1], sizeof(uint64_t));
+				
+				data.set_float(float_val);
 				break;
 			}
 			/*
@@ -894,7 +920,6 @@ namespace claujson {
 
 		INLINE static UserType make_none() {
 			ItemType temp;
-			temp.key.type = simdjson::internal::tape_type::STRING;
 
 			UserType ut(std::move(temp), -2);
 
@@ -937,7 +962,7 @@ namespace claujson {
 			
 			simdjson::Convert(temp, idx, idx2, len, true, buf, string_buf, id);
 
-			this->data.push_back(new UserType(ItemType(temp, Data(), true), type));
+			this->data.push_back(new UserType(ItemType(std::move(temp), Data(), true), type));
 
 			((UserType*)this->data.back())->parent = this;
 		}
@@ -985,7 +1010,7 @@ namespace claujson {
 				simdjson::Convert(temp2, idx21, idx22, len2, false, buf, string_buf, id2);
 
 
-				this->data.push_back(new UserType(ItemType(temp, temp2, true), 4));
+				this->data.push_back(new UserType(ItemType(std::move(temp), std::move(temp2), true), 4));
 			}
 		}
 
@@ -1008,7 +1033,7 @@ namespace claujson {
 
 			simdjson::Convert(temp2, idx21, idx22, len2, false, buf, string_buf, id);
 
-			this->data.push_back(new UserType(ItemType(Data(), temp2, false), 4));
+			this->data.push_back(new UserType(ItemType(Data(), std::move(temp2), false), 4));
 		}
 
 		INLINE void add_item_type(const Data& name, const claujson::Data& data) {
@@ -1204,8 +1229,6 @@ namespace claujson {
 		{
 			int a = clock();
 
-			simdjson::dom::parser test;
-
 			std::vector<Test> Vec;
 
 			if (token_arr_len <= 0) {
@@ -1217,10 +1240,10 @@ namespace claujson {
 
 			int state = start_state;
 			size_t braceNum = 0;
-			std::vector< class UserType* > nestedUT(1);
+			std::vector< class UserType* > nestedUT;
 
 			nestedUT.reserve(10);
-			nestedUT[0] = &global;
+			nestedUT.push_back(&global);
 
 			int64_t count = 0;
 
@@ -1881,27 +1904,27 @@ namespace claujson {
 			}
 
 			StrStream& operator<<(std::string_view x) {
-				format_to(std::back_inserter(out), "{}", x);
+				fmt::format_to(std::back_inserter(out), "{}", x);
 				return *this;
 			}
 
 			StrStream& operator<<(double x) {
-				format_to(std::back_inserter(out), FMT_COMPILE("{:.10f}"), x);
+				fmt::format_to(std::back_inserter(out), FMT_COMPILE("{:.10f}"), x);
 				return *this;
 			}
 
 			StrStream& operator<<(int64_t x) {
-				format_to(std::back_inserter(out), "{}", x);
+				fmt::format_to(std::back_inserter(out), "{}", x);
 				return *this;
 			}
 
 			StrStream& operator<<(uint64_t x) {
-				format_to(std::back_inserter(out), "{}", x);
+				fmt::format_to(std::back_inserter(out), "{}", x);
 				return *this;
 			}
 
 			StrStream& operator<<(char ch) {
-				format_to(std::back_inserter(out), "{}", ch);
+				fmt::format_to(std::back_inserter(out), "{}", ch);
 				return *this;
 			}
 		};
@@ -1916,7 +1939,7 @@ namespace claujson {
 						auto& x = ut->get_data_list(i)->value;
 
 						if (
-							x.key.type == simdjson::internal::tape_type::STRING) {
+							x.key.type() == simdjson::internal::tape_type::STRING) {
 							stream << "\"";
 							for (long long j = 0; j < ((std::string&)(*x.key.get_str_val())).size(); ++j) {
 								switch ((*x.key.get_str_val())[j]) {
@@ -1982,7 +2005,7 @@ namespace claujson {
 						auto& x = ut->get_data_list(i)->value;
 
 						if (
-							x.key.type == simdjson::internal::tape_type::STRING) {
+							x.key.type() == simdjson::internal::tape_type::STRING) {
 							stream << "\"";
 							for (long long j = 0; j < (*x.key.get_str_val()).size(); ++j) {
 								switch ((*x.key.get_str_val())[j]) {
@@ -2028,7 +2051,7 @@ namespace claujson {
 							auto& x = ut->get_data_list(i)->value;
 
 							if (
-								x.data.type == simdjson::internal::tape_type::STRING) {
+								x.data.type() == simdjson::internal::tape_type::STRING) {
 								stream << "\"";
 								for (long long j = 0; j < ((std::string&)(*x.data.get_str_val())).size(); ++j) {
 									switch ((*x.data.get_str_val())[j]) {
@@ -2066,22 +2089,22 @@ namespace claujson {
 								stream << "\"";
 
 							}
-							else if (x.data.type == simdjson::internal::tape_type::TRUE_VALUE) {
+							else if (x.data.type() == simdjson::internal::tape_type::TRUE_VALUE) {
 								stream << "true";
 							}
-							else if (x.data.type == simdjson::internal::tape_type::FALSE_VALUE) {
+							else if (x.data.type() == simdjson::internal::tape_type::FALSE_VALUE) {
 								stream << "false";
 							}
-							else if (x.data.type == simdjson::internal::tape_type::DOUBLE) {
-								stream << (x.data.float_val);
+							else if (x.data.type() == simdjson::internal::tape_type::DOUBLE) {
+								stream << (x.data.float_val());
 							}
-							else if (x.data.type == simdjson::internal::tape_type::INT64) {
-								stream << x.data.int_val;
+							else if (x.data.type() == simdjson::internal::tape_type::INT64) {
+								stream << x.data.int_val();
 							}
-							else if (x.data.type == simdjson::internal::tape_type::UINT64) {
-								stream << x.data.uint_val;
+							else if (x.data.type() == simdjson::internal::tape_type::UINT64) {
+								stream << x.data.uint_val();
 							}
-							else if (x.data.type == simdjson::internal::tape_type::NULL_VALUE) {
+							else if (x.data.type() == simdjson::internal::tape_type::NULL_VALUE) {
 								stream << "null ";
 							}
 						}
@@ -2119,7 +2142,7 @@ namespace claujson {
 						auto& x = ut->get_data_list(i)->value;
 
 						if (
-							x.data.type == simdjson::internal::tape_type::STRING) {
+							x.data.type() == simdjson::internal::tape_type::STRING) {
 							stream << "\"";
 							for (long long j = 0; j < (*x.data.get_str_val()).size(); ++j) {
 								switch ((*x.data.get_str_val())[j]) {
@@ -2156,22 +2179,22 @@ namespace claujson {
 
 							stream << "\"";
 						}
-						else if (x.data.type == simdjson::internal::tape_type::TRUE_VALUE) {
+						else if (x.data.type() == simdjson::internal::tape_type::TRUE_VALUE) {
 							stream << "true";
 						}
-						else if (x.data.type == simdjson::internal::tape_type::FALSE_VALUE) {
+						else if (x.data.type() == simdjson::internal::tape_type::FALSE_VALUE) {
 							stream << "false";
 						}
-						else if (x.data.type == simdjson::internal::tape_type::DOUBLE) {
-							stream << (x.data.float_val);
+						else if (x.data.type() == simdjson::internal::tape_type::DOUBLE) {
+							stream << (x.data.float_val());
 						}
-						else if (x.data.type == simdjson::internal::tape_type::INT64) {
-							stream << x.data.int_val;
+						else if (x.data.type() == simdjson::internal::tape_type::INT64) {
+							stream << x.data.int_val();
 						}
-						else if (x.data.type == simdjson::internal::tape_type::UINT64) {
-							stream << x.data.uint_val;
+						else if (x.data.type() == simdjson::internal::tape_type::UINT64) {
+							stream << x.data.uint_val();
 						}
-						else if (x.data.type == simdjson::internal::tape_type::NULL_VALUE) {
+						else if (x.data.type() == simdjson::internal::tape_type::NULL_VALUE) {
 							stream << "null ";
 						}
 
@@ -2220,7 +2243,7 @@ namespace claujson {
 		int _ = clock();
 
 		{
-			 simdjson::dom::parser test;
+			simdjson::dom::parser test;
 
 			auto x = test.load(fileName);
 
