@@ -98,6 +98,7 @@ namespace claujson {
 				delete _str_val;
 			}
 			_int_val = x;
+			_type = simdjson::internal::tape_type::INT64;
 		}
 
 		void set_uint(unsigned long long x) {
@@ -105,6 +106,7 @@ namespace claujson {
 				delete _str_val;
 			}
 			_uint_val = x;
+			_type = simdjson::internal::tape_type::UINT64;
 		}
 
 		void set_float(double x) {
@@ -112,6 +114,8 @@ namespace claujson {
 				delete _str_val;
 			}
 			_float_val = x;
+
+			_type = simdjson::internal::tape_type::DOUBLE;
 		}
 
 		void set_str(const char* str, size_t len) {
@@ -121,6 +125,7 @@ namespace claujson {
 			else {
 				_str_val->assign(str, len);
 			}
+			_type = simdjson::internal::tape_type::STRING;
 		}
 
 		void set_type(simdjson::internal::tape_type type) {
@@ -1106,7 +1111,7 @@ namespace claujson {
 
 namespace claujson {
 
-	inline simdjson::internal::tape_type get_type(char x) {
+	inline simdjson::internal::tape_type get_type(unsigned char x) { // todo...
 		switch (x) {
 		case '-':
 		case '0':
