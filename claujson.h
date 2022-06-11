@@ -39,7 +39,7 @@ namespace claujson {
 			std::string* _str_val; // const
 		};
 
-		simdjson::internal::tape_type _type;
+		simdjson::internal::tape_type _type = simdjson::internal::tape_type::NONE;
 	
 	public:
 
@@ -167,7 +167,7 @@ namespace claujson {
 			}
 		}
 
-		Data() : _int_val(0), _type(simdjson::internal::tape_type::NONE) { } // here used as ERROR? or Init...? - ROOT
+		Data() : _int_val(0), _type(simdjson::internal::tape_type::NONE) { } 
 
 		bool operator==(const Data& other) const {
 			if (this->_type == other._type) {
