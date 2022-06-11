@@ -46,7 +46,7 @@ int main(int argc, char* argv[])
 			auto x = claujson::Parse(argv[1], 64, &ut);
 			if (!x.first) {
 				std::cout << "fail\n";
-				return 2;
+				return 1;
 			}
 
 			int b = clock();
@@ -133,7 +133,7 @@ int main(int argc, char* argv[])
 			//ut.remove_all(poolManager);
 			
 
-			//return !ok;
+			return !ok;
 		}
 		catch (...) {
 			std::cout << "internal error\n";
