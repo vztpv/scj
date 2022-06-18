@@ -40,7 +40,7 @@ namespace claujson {
 		};
 
 		simdjson::internal::tape_type _type = simdjson::internal::tape_type::NONE;
-	
+
 	public:
 
 		simdjson::internal::tape_type type() const {
@@ -59,15 +59,15 @@ namespace claujson {
 			return _float_val;
 		}
 
-		long long& int_val()  {
+		long long& int_val() {
 			return _int_val;
 		}
 
-		unsigned long long& uint_val()  {
+		unsigned long long& uint_val() {
 			return _uint_val;
 		}
 
-		double& float_val()  {
+		double& float_val() {
 			return _float_val;
 		}
 
@@ -76,7 +76,7 @@ namespace claujson {
 	public:
 		void clear() {
 			//is_key = false;
-			
+
 			if (_type == simdjson::internal::tape_type::STRING) {
 				delete _str_val;
 				_str_val = nullptr;
@@ -146,7 +146,7 @@ namespace claujson {
 		{
 			if (_type == simdjson::internal::tape_type::STRING) {
 				_str_val = new std::string(*other._str_val);
-				
+
 			}
 			else {
 				_int_val = other._int_val;
@@ -156,7 +156,7 @@ namespace claujson {
 		Data(Data&& other) noexcept
 			: _type(other._type) //, is_key(other.is_key) 
 		{
-			
+
 			if (_type == simdjson::internal::tape_type::STRING) {
 				_str_val = other._str_val;
 				other._str_val = nullptr;
@@ -167,7 +167,7 @@ namespace claujson {
 			}
 		}
 
-		Data() : _int_val(0), _type(simdjson::internal::tape_type::NONE) { } 
+		Data() : _int_val(0), _type(simdjson::internal::tape_type::NONE) { }
 
 		bool operator==(const Data& other) const {
 			if (this->_type == other._type) {
@@ -203,7 +203,7 @@ namespace claujson {
 			else if (this->_type == simdjson::internal::tape_type::STRING && other._type != simdjson::internal::tape_type::STRING) {
 				delete this->_str_val;
 			}
-			
+
 			this->_type = other._type;
 
 			if (this->_type == simdjson::internal::tape_type::STRING) {
@@ -221,7 +221,7 @@ namespace claujson {
 			if (this == &other) {
 				return *this;
 			}
-			
+
 			std::swap(this->_type, other._type);
 			std::swap(this->_int_val, other._int_val);
 
@@ -482,12 +482,12 @@ namespace simdjson {
 				break;
 			case simdjson::internal::tape_type::UINT64:
 				memcpy(&uint_val, &temp[1], sizeof(uint64_t));
-				
+
 				data.set_uint(uint_val);
 				break;
 			case simdjson::internal::tape_type::DOUBLE:
 				memcpy(&float_val, &temp[1], sizeof(uint64_t));
-				
+
 				data.set_float(float_val);
 				break;
 			}
@@ -536,7 +536,7 @@ namespace claujson {
 
 		ItemType(const Data& key, const Data& data, bool has_key) : key(key), data(data), has_key(has_key)
 		{
-		
+
 		}
 
 		ItemType(Data&& key, Data&& data, bool has_key) noexcept : key(std::move(key)), data(std::move(data)), has_key(has_key)
@@ -544,7 +544,7 @@ namespace claujson {
 			//
 		}
 
-		ItemType(const ItemType& other) : key(other.key), data(other.data),  has_key(other.has_key) {
+		ItemType(const ItemType& other) : key(other.key), data(other.data), has_key(other.has_key) {
 			//
 		}
 		ItemType(ItemType&& other) noexcept : key(std::move(other.key)), data(std::move(other.data)), has_key(other.has_key)
@@ -570,7 +570,7 @@ namespace claujson {
 	};
 
 	class UserType {
-		
+
 
 	public:
 
@@ -613,9 +613,10 @@ namespace claujson {
 		std::vector<UserType*> data;
 
 		UserType* parent = nullptr; // 
-		
+
 		int type = -1; // 0 - object, 1 - array, 2 - virtual object, 3 - virtual array, 4 - item, -1 - root, -2 - only in parse... -4 ..
-		
+
+		char temp[24];
 	public:
 		//INLINE const static size_t npos = -1; // ?
 		// chk type?
@@ -666,7 +667,7 @@ namespace claujson {
 		UserType(UserType&& other) noexcept {
 			std::swap(this->value, other.value);
 			std::swap(this->data, other.data);
-			
+
 			// chk
 			for (auto& x : data) {
 				x->parent = this;
@@ -807,10 +808,10 @@ namespace claujson {
 			// todo - chk this->type == 0 (object) but name is empty
 			// todo - chk this->type == 1 (array) but name is not empty.
 
-			if (this->type == 1) {
+			if (this->is_array()) {
 				throw "Error add object element to array in add_object_element ";
 			}
-			if (this->type == -1 && this->data.size() >= 1) {
+			if (this->type == -1) {
 				throw "Error not valid json in add_object_element";
 			}
 
@@ -825,7 +826,7 @@ namespace claujson {
 			// todo - chk this->type == 0 (object) but name is empty
 			// todo - chk this->type == 1 (array) but name is not empty.
 
-			if (this->type == 0) {
+			if (this->is_object()) {
 				throw "Error add object element to array in add_array_element ";
 			}
 			if (this->type == -1 && this->data.size() >= 1) {
@@ -858,7 +859,7 @@ namespace claujson {
 				throw "Error in add_object_with_key";
 			}
 
-			if (this->type == -1 && this->data.size() >= 1) {
+			if (this->type == -1) { //}&& this->data.size() >= 1) {
 				throw "Error not valid json in add_object_with_key";
 			}
 
@@ -878,7 +879,7 @@ namespace claujson {
 				throw "Error in add_array_with_key";
 			}
 
-			if (this->type == -1 && this->data.size() >= 1) {
+			if (this->type == -1) { // }&& this->data.size() >= 1) {
 				throw "Error not valid json in add_array_with_key";
 			}
 
@@ -979,9 +980,9 @@ namespace claujson {
 			//if (this->type == -1 && this->data.size() >= 1) {
 			//	throw "Error not valid json in add_user_type";
 			//}
-			
+
 			Data temp;
-			
+
 			simdjson::Convert(temp, idx, idx2, len, true, buf, string_buf, id);
 
 
@@ -1135,7 +1136,7 @@ namespace claujson {
 	};
 
 
-	
+
 }
 
 
@@ -1416,7 +1417,7 @@ namespace claujson {
 										std::cout << "vec[x].is key\n";
 										exit(1);
 									}
-									nestedUT[braceNum]->add_item_type( (Vec[x].idx), Vec[x].idx2, Vec[x].len,
+									nestedUT[braceNum]->add_item_type((Vec[x].idx), Vec[x].idx2, Vec[x].len,
 										(Vec[x + 1].idx), Vec[x + 1].idx2, Vec[x + 1].len,
 										buf, string_buf, Vec[x].id, Vec[x + 1].id);
 									//++pool;
@@ -1430,7 +1431,7 @@ namespace claujson {
 										std::cout << "Vec[x].iskey\n";
 										exit(1);
 									}
-									nestedUT[braceNum]->add_item_type( (Vec[x].idx), Vec[x].idx2, Vec[x].len, buf, string_buf, Vec[x].id);
+									nestedUT[braceNum]->add_item_type((Vec[x].idx), Vec[x].idx2, Vec[x].len, buf, string_buf, Vec[x].id);
 									//++pool;
 								}
 							}
@@ -1439,12 +1440,12 @@ namespace claujson {
 						}
 
 						if (key.is_key) {
-							nestedUT[braceNum]->add_user_type( key.idx, key.idx2, key.len, buf, string_buf,
+							nestedUT[braceNum]->add_user_type(key.idx, key.idx2, key.len, buf, string_buf,
 								type == simdjson::internal::tape_type::START_OBJECT ? 0 : 1, key.id); // object vs array
 							key.is_key = false;// ++pool;
 						}
 						else {
-							nestedUT[braceNum]->add_user_type( type == simdjson::internal::tape_type::START_OBJECT ? 0 : 1);
+							nestedUT[braceNum]->add_user_type(type == simdjson::internal::tape_type::START_OBJECT ? 0 : 1);
 							//++pool;
 						}
 
@@ -1501,7 +1502,7 @@ namespace claujson {
 										exit(1);
 									}
 
-									nestedUT[braceNum]->add_item_type( Vec[x].idx, Vec[x].idx2, Vec[x].len,
+									nestedUT[braceNum]->add_item_type(Vec[x].idx, Vec[x].idx2, Vec[x].len,
 										Vec[x + 1].idx, Vec[x + 1].idx2, Vec[x + 1].len, buf, string_buf, Vec[x].id, Vec[x + 1].id);
 									//++pool;9
 
@@ -1516,7 +1517,7 @@ namespace claujson {
 										exit(1);
 									}
 
-									nestedUT[braceNum]->add_item_type( (x.idx), x.idx2, x.len, buf, string_buf, x.id);
+									nestedUT[braceNum]->add_item_type((x.idx), x.idx2, x.len, buf, string_buf, x.id);
 									//++pool;
 								}
 							}
@@ -1528,7 +1529,7 @@ namespace claujson {
 						if (braceNum == 0) {
 							class UserType ut; //
 
-							ut.add_user_type( type == simdjson::internal::tape_type::END_OBJECT ? 2 : 3); // json -> "var_name" = val  
+							ut.add_user_type(type == simdjson::internal::tape_type::END_OBJECT ? 2 : 3); // json -> "var_name" = val  
 							//++pool;
 
 							for (size_t i = 0; i < nestedUT[braceNum]->get_data_size(); ++i) {
@@ -1631,7 +1632,7 @@ namespace claujson {
 							exit(1);
 						}
 
-						nestedUT[braceNum]->add_item_type( Vec[x].idx, Vec[x].idx2, Vec[x].len, Vec[x + 1].idx, Vec[x + 1].idx2, Vec[x + 1].len,
+						nestedUT[braceNum]->add_item_type(Vec[x].idx, Vec[x].idx2, Vec[x].len, Vec[x + 1].idx, Vec[x + 1].idx2, Vec[x + 1].len,
 							buf, string_buf, Vec[x].id, Vec[x + 1].id);
 						//++pool;
 					}
@@ -1642,7 +1643,7 @@ namespace claujson {
 							exit(1);
 						}
 
-						nestedUT[braceNum]->add_item_type( Vec[x].idx, Vec[x].idx2, Vec[x].len, buf, string_buf, Vec[x].id);
+						nestedUT[braceNum]->add_item_type(Vec[x].idx, Vec[x].idx2, Vec[x].len, buf, string_buf, Vec[x].id);
 						//++pool;
 					}
 				}
@@ -1690,7 +1691,7 @@ namespace claujson {
 			int a__ = clock();
 			{
 				// chk clear?
-			
+
 				const int pivot_num = parse_num - 1;
 				//size_t token_arr_len = length; // size?
 
@@ -1742,9 +1743,9 @@ namespace claujson {
 					}
 
 
-					std::vector<std::thread> thr(pivots.size()-1);
+					std::vector<std::thread> thr(pivots.size() - 1);
 
-					
+
 					std::vector<int> err(pivots.size() - 1, 0);
 
 					int c1 = clock();
@@ -1769,7 +1770,7 @@ namespace claujson {
 						//SetThreadPriority(th, THREAD_PRIORITY_HIGHEST);
 					}
 					int c2 = clock();
-				//	std::cout << "chk... " << c2 - c1 << "\n";
+					//	std::cout << "chk... " << c2 - c1 << "\n";
 
 					auto a = std::chrono::steady_clock::now();
 
@@ -1913,7 +1914,7 @@ namespace claujson {
 
 			//	std::cout << clock() - a__ << "ms\n";
 			}
-		//	std::cout << clock() - a__ << "ms\n";
+			//	std::cout << clock() - a__ << "ms\n";
 			return true;
 
 		}
@@ -2280,7 +2281,7 @@ namespace claujson {
 		{
 			simdjson::dom::parser test;
 
-			auto x = test.load(fileName);
+			static auto x = test.load(fileName);
 
 			if (x.error() != simdjson::error_code::SUCCESS) {
 				std::cout << "stage1 error : ";
