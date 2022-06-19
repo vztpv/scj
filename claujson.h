@@ -732,7 +732,12 @@ namespace claujson {
 			else if (this->is_array() && ut->value.has_key) {
 				exit(1);
 			}
-
+			if (this->type == -1 && this->data.size() > 0) {
+				exit(1); //
+			}
+			if (this->type == -1 && ut->value.has_key) {
+				exit(1);
+			}
 			data.push_back(ut);
 
 			ut->parent = this;
@@ -745,6 +750,13 @@ namespace claujson {
 				exit(1);
 			}
 
+			if (this->type == -1 && this->data.size() > 0) {
+				exit(1); //
+			}
+			if (this->type == -1 && item->value.has_key) {
+				exit(1);
+			}
+			
 			this->data.push_back(item);
 		}
 
@@ -1913,7 +1925,7 @@ namespace claujson {
 
 				///global = std::move(_global);
 				int b = clock();
-				//std::cout << "chk " << b - a << "ms\n";
+				std::cout << "chk " << b - a << "ms\n";
 
 			//	std::cout << clock() - a__ << "ms\n";
 			}
