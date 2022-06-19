@@ -936,6 +936,7 @@ namespace claujson {
 	private:
 
 		INLINE void add_user_type(UserType* ut) {
+
 			this->data.push_back(ut);
 			ut->parent = this;
 		}
@@ -977,9 +978,9 @@ namespace claujson {
 			}
 
 
-			//if (this->type == -1 && this->data.size() >= 1) {
-			//	throw "Error not valid json in add_user_type";
-			//}
+			if (this->type == -1) {
+				throw "Error not valid json in add_user_type";
+			}
 
 			Data temp;
 
@@ -1005,9 +1006,9 @@ namespace claujson {
 				exit(1);
 			}
 
-			//if (this->type == -1 && this->data.size() >= 1) {
-			//	throw "Error not valid json in add_user_type";
-			//}
+			if (this->type == -1 && this->data.size() >= 1) {
+				throw "Error not valid json in add_user_type";
+			}
 
 			this->data.push_back(new UserType(ItemType(), type));
 
@@ -1026,9 +1027,9 @@ namespace claujson {
 				exit(1);
 			}
 
-			//if (this->type == -1 && this->data.size() >= 1) {
-			//	throw "Error not valid json in add_item_type";
-			//}
+			if (this->type == -1) {
+				throw "Error not valid json in add_item_type";
+			}
 
 			{
 				Data temp;
@@ -1057,9 +1058,9 @@ namespace claujson {
 			}
 
 
-			//if (this->type == -1 && this->data.size() >= 1) {
-			//	throw "Error not valid json in add_item_type";
-			//}
+			if (this->type == -1 && this->data.size() >= 1) {
+				throw "Error not valid json in add_item_type";
+			}
 
 			Data temp2;
 
@@ -1077,9 +1078,10 @@ namespace claujson {
 				exit(1);
 			}
 
-			//	if (this->type == -1 && this->data.size() >= 1) {
-				//	throw "Error not valid json in add_item_type";
-			//	}
+			if (this->type == -1) { // }&& this->data.size() >= 1) {
+				throw "Error not valid json in add_item_type";
+			}
+
 			if (name.type() != simdjson::internal::tape_type::STRING) {
 				exit(1);
 			}
@@ -1092,9 +1094,10 @@ namespace claujson {
 			// todo - chk this->type == 0 (object) but name is empty
 			// todo - chk this->type == 1 (array) but name is not empty.
 
-			//if (this->type == -1 && this->data.size() >= 1) {
-			//	throw "Error not valid json in add_item_type";
-			//}
+			if (this->type == -1 && this->data.size() >= 1) {
+				throw "Error not valid json in add_item_type";
+			}
+
 			if (is_object()) {
 				std::cout << "array \n";
 				exit(1);
