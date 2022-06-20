@@ -15,20 +15,10 @@
 #include <fstream>
 #include <iomanip>
 
-//#include <Windows.h>
-
 #define INLINE inline
 
 
 namespace claujson {
-
-
-	using STRING = std::string;
-
-	class UserType;
-
-
-	//UserType* ChkPool(UserType*& node, PoolManager& manager);
 
 	class Data {
 	private:
@@ -400,11 +390,7 @@ namespace simdjson {
 
 		switch (buf[idx]) {
 		case '"':
-		{ // need buf_length?
-
-			//if (key) {
-				//data.is_key = true;
-			//}
+		{ 
 
 			if (auto* x = simdjson::SIMDJSON_IMPLEMENTATION::stringparsing::parse_string((uint8_t*)&buf[idx] + 1,
 				&string_buf[idx]); x == nullptr) {
@@ -1276,7 +1262,7 @@ namespace claujson {
 			uint8_t* string_buf,
 			simdjson::internal::dom_parser_implementation* imple,
 			int64_t token_arr_start, size_t token_arr_len, class UserType* _global,
-			int start_state, int last_state, class UserType** next, int* err, int no)
+			int start_state, int last_state, class UserType** next, int* err, uint64_t no)
 		{
 			int a = clock();
 
@@ -1309,7 +1295,7 @@ namespace claujson {
 			}
 
 
-			for (int64_t i = 0; i < token_arr_len; ++i) {
+			for (uint64_t i = 0; i < token_arr_len; ++i) {
 
 				const simdjson::internal::tape_type type = get_type(buf[imple->structural_indexes[token_arr_start + i]]);
 
@@ -1839,8 +1825,8 @@ namespace claujson {
 							}
 						}
 
-						int start = 0;
-						int last = pivots.size() - 1 - 1;
+						uint64_t start = 0;
+						uint64_t last = pivots.size() - 1 - 1;
 
 						for (int i = 0; i < pivots.size() - 1; ++i) {
 							if (chk[i] == 0) {
@@ -1849,7 +1835,7 @@ namespace claujson {
 							}
 						}
 
-						for (int i = pivots.size() - 1 - 1; i >= 0; --i) {
+						for (uint64_t i = pivots.size() - 1 - 1; i >= 0; --i) {
 							if (chk[i] == 0) {
 								last = i;
 								break;
@@ -1874,15 +1860,15 @@ namespace claujson {
 							throw 3;
 						}
 
-						for (int i = start + 1; i <= last; ++i) {
+						for (uint64_t i = start + 1; i <= last; ++i) {
 
 							if (chk[i]) {
 								continue;
 							}
 
 							// linearly merge and error check...
-							int before = i - 1;
-							for (int k = i - 1; k >= 0; --k) {
+							uint64_t before = i - 1;
+							for (uint64_t k = i - 1; k >= 0; --k) {
 								if (chk[k] == 0) {
 									before = k;
 									break;
@@ -1921,9 +1907,10 @@ namespace claujson {
 				}
 				int a = clock();
 
-				Merge(&global, &_global, nullptr);
+				//Merge(&global, &_global, nullptr);
 
-				///global = std::move(_global);
+				global = std::move(_global);
+				
 				int b = clock();
 				std::cout << "chk " << b - a << "ms\n";
 
@@ -1992,7 +1979,7 @@ namespace claujson {
 						if (
 							x.key.type() == simdjson::internal::tape_type::STRING) {
 							stream << "\"";
-							for (long long j = 0; j < ((std::string&)(*x.key.get_str_val())).size(); ++j) {
+							for (uint64_t j = 0; j < ((std::string&)(*x.key.get_str_val())).size(); ++j) {
 								switch ((*x.key.get_str_val())[j]) {
 								case '\\':
 									stream << "\\\\";
@@ -2058,7 +2045,7 @@ namespace claujson {
 						if (
 							x.key.type() == simdjson::internal::tape_type::STRING) {
 							stream << "\"";
-							for (long long j = 0; j < (*x.key.get_str_val()).size(); ++j) {
+							for (uint64_t j = 0; j < (*x.key.get_str_val()).size(); ++j) {
 								switch ((*x.key.get_str_val())[j]) {
 								case '\\':
 									stream << "\\\\";
@@ -2104,7 +2091,7 @@ namespace claujson {
 							if (
 								x.data.type() == simdjson::internal::tape_type::STRING) {
 								stream << "\"";
-								for (long long j = 0; j < ((std::string&)(*x.data.get_str_val())).size(); ++j) {
+								for (uint64_t j = 0; j < ((std::string&)(*x.data.get_str_val())).size(); ++j) {
 									switch ((*x.data.get_str_val())[j]) {
 									case '\\':
 										stream << "\\\\";
@@ -2195,7 +2182,7 @@ namespace claujson {
 						if (
 							x.data.type() == simdjson::internal::tape_type::STRING) {
 							stream << "\"";
-							for (long long j = 0; j < (*x.data.get_str_val()).size(); ++j) {
+							for (uint64_t j = 0; j < (*x.data.get_str_val()).size(); ++j) {
 								switch ((*x.data.get_str_val())[j]) {
 								case '\\':
 									stream << "\\\\";
