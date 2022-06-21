@@ -394,9 +394,8 @@ namespace simdjson {
 
 			if (auto* x = simdjson::SIMDJSON_IMPLEMENTATION::stringparsing::parse_string((uint8_t*)&buf[idx] + 1,
 				&string_buf[idx]); x == nullptr) {
-				std::cout << "ERROR in string\n";
-				// error processing?
-				exit(1);
+				std::cout << "Error in string\n";
+				throw "Error in Convert for string";
 			}
 			else {
 				*x = '\0';
@@ -411,7 +410,7 @@ namespace simdjson {
 		{
 			if (!simdjson::SIMDJSON_IMPLEMENTATION::atomparsing::is_valid_true_atom(reinterpret_cast<uint8_t*>(&buf[idx]), idx2 - idx)) {
 				std::cout << idx2 << "\n";
-				exit(1);
+				throw "Error in Convert for true";
 			}
 
 			data.set_type((simdjson::internal::tape_type)buf[idx]);
@@ -419,14 +418,14 @@ namespace simdjson {
 		break;
 		case 'f':
 			if (!simdjson::SIMDJSON_IMPLEMENTATION::atomparsing::is_valid_false_atom(reinterpret_cast<uint8_t*>(&buf[idx]), idx2 - idx)) {
-				exit(1);
+				throw "Error in Convert for false";
 			}
 
 			data.set_type((simdjson::internal::tape_type)buf[idx]);
 			break;
 		case 'n':
 			if (!simdjson::SIMDJSON_IMPLEMENTATION::atomparsing::is_valid_null_atom(reinterpret_cast<uint8_t*>(&buf[idx]), idx2 - idx)) {
-				exit(1);
+				throw "Error in Convert for null";
 			}
 
 			data.set_type((simdjson::internal::tape_type)buf[idx]);
@@ -444,7 +443,7 @@ namespace simdjson {
 
 			if (id == 0) {
 				copy = std::unique_ptr<uint8_t[]>(new (std::nothrow) uint8_t[idx2 - idx + SIMDJSON_PADDING]);
-				if (copy.get() == nullptr) { exit(1); }
+				if (copy.get() == nullptr) { throw "Error in Convert for new"; } // cf) new UserType?
 				std::memcpy(copy.get(), &buf[idx], idx2 - idx);
 				std::memset(copy.get() + idx2 - idx, ' ', SIMDJSON_PADDING);
 				value = copy.get();
@@ -453,7 +452,7 @@ namespace simdjson {
 			if (auto x = SIMDJSON_IMPLEMENTATION::numberparsing::parse_number<SIMDJSON_IMPLEMENTATION::Writer>(value, writer)
 				; x != simdjson::error_code::SUCCESS) {
 				std::cout << "parse number error. " << x << "\n";
-				exit(1);
+				throw "Error in Convert to parse number";
 			}
 
 			long long int_val = 0;
@@ -477,33 +476,12 @@ namespace simdjson {
 				data.set_float(float_val);
 				break;
 			}
-			/*
-			if (buf[idx] == '0' && isdigit(buf[idx + 1])) {
-				exit(1);
-				//
-			}
-			//if (std::from_chars(value, value2 + 1, data.int_val).ec != std::errc()) {
-			//	if (std::from_chars(value, value2 + 1, data.uint_val).ec != std::errc()) {
-			if (fast_float::from_chars(&buf[idx], buf.get() + idx2, data.float_val).ec != std::errc()) {
-				std::cout << "Error.. not number. \n";
-			}
-			else {
-				data.type = simdjson::internal::tape_type::DOUBLE;
-			}
-			//	}
-			//	else {
-			//		data.type = simdjson::internal::tape_type::UINT64;
-			///	}
-			//}
-			//else {
-			//	data.type = simdjson::internal::tape_type::INT64;
-			//}
-			*/
+		
 			break;
 		}
 		default:
 			std::cout << "convert error : " << (int)buf[idx] << " " << buf[idx] << "\n";
-			exit(1);
+			throw "Error in Convert : not expected";
 		}
 		return data;
 	}
@@ -713,16 +691,16 @@ namespace claujson {
 		void LinkUserType(UserType* ut) // friend?
 		{
 			if (this->is_object() && !ut->value.has_key) {
-				exit(1);
+				throw "Error in LinkUserType, now is object but new child has no key";
 			}
 			else if (this->is_array() && ut->value.has_key) {
-				exit(1);
+				throw "Error in LinkUserType, now is array but new child has a key";
 			}
 			if (this->type == -1 && this->data.size() > 0) {
-				exit(1); //
+				throw "Error in LinkUserType, root node has only 1 or 0 count"; // 개수가 0또는 1
 			}
 			if (this->type == -1 && ut->value.has_key) {
-				exit(1);
+				throw "Error in LinkUserType,  now is root node, but new child has a key";
 			}
 			data.push_back(ut);
 
@@ -730,17 +708,17 @@ namespace claujson {
 		}
 		void LinkItemType(UserType* item) {
 			if (this->is_object() && !item->value.has_key) {
-				exit(1);
+				throw "Error in LinkItemType,  now is object, but new child has no key";
 			}
 			else if (this->is_array() && item->value.has_key) {
-				exit(1);
+				throw "Error in LinkItemType,  now is array, but new child has a key";
 			}
 
 			if (this->type == -1 && this->data.size() > 0) {
-				exit(1); //
+				throw "Error in LinkItemType,  now is root node, but alreay exist value";
 			}
 			if (this->type == -1 && item->value.has_key) {
-				exit(1);
+				throw "Error in LinkItemType,  now is root node, but new child has key";
 			}
 			
 			this->data.push_back(item);
@@ -807,14 +785,14 @@ namespace claujson {
 			// todo - chk this->type == 1 (array) but name is not empty.
 
 			if (this->is_array()) {
-				throw "Error add object element to array in add_object_element ";
+				throw "Error in add_object_element, add object element to array ";
 			}
 			if (this->type == -1) {
-				throw "Error not valid json in add_object_element";
+				throw "Error in add_object_element, not valid json";
 			}
 
 			if (name.type() != simdjson::internal::tape_type::STRING) {
-				exit(1);
+				throw "Error in add_object_element, name is not key(string)";
 			}
 
 			this->data.push_back(make_object(ItemType(name, data, true)));
@@ -825,10 +803,10 @@ namespace claujson {
 			// todo - chk this->type == 1 (array) but name is not empty.
 
 			if (this->is_object()) {
-				throw "Error add object element to array in add_array_element ";
+				throw "Error in add_array_element, add object element to array ";
 			}
 			if (this->type == -1 && this->data.size() >= 1) {
-				throw "Error not valid json in add_array_element";
+				throw "Error in add_array_element, not valid json ";
 			}
 
 			this->data.push_back(make_array(ItemType(Data(), data, false))); // (Type*)make_item_type(std::move(temp), data));
@@ -863,7 +841,7 @@ namespace claujson {
 
 
 			if (object->value.key.type() != simdjson::internal::tape_type::STRING) {
-				exit(1);
+				throw "Error in add_object_with_key, key is not string";
 			}
 
 			this->data.push_back(object);
@@ -882,7 +860,7 @@ namespace claujson {
 			}
 
 			if (_array->value.key.type() != simdjson::internal::tape_type::STRING) {
-				exit(1);
+				throw "Error in add_array_with_key, key is not string";
 			}
 
 			this->data.push_back(_array);
@@ -901,7 +879,7 @@ namespace claujson {
 			}
 
 			if (object->value.key.type() == simdjson::internal::tape_type::STRING) {
-				exit(1);
+				throw "Error in add_object_with_no_key, expect new child is object but has no key";
 			}
 
 			this->data.push_back(object);
@@ -920,7 +898,7 @@ namespace claujson {
 			}
 
 			if (_array->value.key.type() == simdjson::internal::tape_type::STRING) {
-				exit(1);
+				throw "Error in add_array_with_no_key, expect new child is array but has a key";
 			}
 
 			this->data.push_back(_array);
@@ -972,12 +950,12 @@ namespace claujson {
 
 			if (is_array()) {
 				std::cout << "object \n";
-				exit(1);
+				throw "Error in add_user_type, new child has key, but now is array";
 			}
 
 
 			if (this->type == -1) {
-				throw "Error not valid json in add_user_type";
+				throw "Error root node has key, not valid json in add_user_type";
 			}
 
 			Data temp;
@@ -986,7 +964,7 @@ namespace claujson {
 
 
 			if (temp.type() != simdjson::internal::tape_type::STRING) {
-				exit(1);
+				throw "Errror in add_user_type, key is not string";
 			}
 
 			this->data.push_back(new UserType(ItemType(std::move(temp), Data(), true), type));
@@ -1001,11 +979,11 @@ namespace claujson {
 
 			if (is_object()) {
 				std::cout << "array \n";
-				exit(1);
+				throw "Error in add_user_type, now node is object but add no key user_type";
 			}
 
 			if (this->type == -1 && this->data.size() >= 1) {
-				throw "Error not valid json in add_user_type";
+				throw "Error root node is one element? , not valid json in add_user_type";
 			}
 
 			this->data.push_back(new UserType(ItemType(), type));
@@ -1022,7 +1000,7 @@ namespace claujson {
 
 			if (is_array()) {
 				std::cout << "object \n";
-				exit(1);
+				throw "Error in add_item_type, node is array but new child has key";
 			}
 
 			if (this->type == -1) {
@@ -1037,7 +1015,7 @@ namespace claujson {
 				simdjson::Convert(temp2, idx21, idx22, len2, false, buf, string_buf, id2);
 
 				if (temp.type() != simdjson::internal::tape_type::STRING) {
-					exit(1);
+					throw "Error in add_item_type, key is not string";
 				}
 
 
@@ -1052,12 +1030,12 @@ namespace claujson {
 
 			if (is_object()) {
 				std::cout << "array \n";
-				exit(1);
+				throw "Error in add_item_type, now is object but new item has a key";
 			}
 
 
 			if (this->type == -1 && this->data.size() >= 1) {
-				throw "Error not valid json in add_item_type";
+				throw "Error root node already has value, not valid json in add_item_type";
 			}
 
 			Data temp2;
@@ -1073,15 +1051,15 @@ namespace claujson {
 
 			if (is_array()) {
 				std::cout << "object \n";
-				exit(1);
+				throw "Error in add_item_type, now is array but new item has key";
 			}
 
 			if (this->type == -1) { // }&& this->data.size() >= 1) {
-				throw "Error not valid json in add_item_type";
+				throw "Error root node`s value must not have a key, not valid json in add_item_type";
 			}
 
 			if (name.type() != simdjson::internal::tape_type::STRING) {
-				exit(1);
+				throw "Error in add_item_type, key is not string";
 			}
 
 
@@ -1098,7 +1076,7 @@ namespace claujson {
 
 			if (is_object()) {
 				std::cout << "array \n";
-				exit(1);
+				throw "Error add_item_type, now is object but new item has no key";
 			}
 
 			this->data.push_back(new UserType(Data(), data, false, 4));
@@ -1192,10 +1170,10 @@ namespace claujson {
 				class UserType* _next = next;
 
 				if (_next->is_array() && _ut->is_object()) {
-					exit(1);
+					throw "Error in Merge, next is array but child? is object";
 				}
 				if (_next->is_object() && _ut->is_array()) {
-					exit(1);
+					throw "Error in Merge, next is object but child? is array";
 				}
 
 
@@ -1264,404 +1242,414 @@ namespace claujson {
 			int64_t token_arr_start, size_t token_arr_len, class UserType* _global,
 			int start_state, int last_state, class UserType** next, int* err, uint64_t no)
 		{
-			int a = clock();
+			try {
+				int a = clock();
 
-			std::vector<Test> Vec;
+				std::vector<Test> Vec;
 
-			if (token_arr_len <= 0) {
-				*next = nullptr;
-				return false;
-			}
+				if (token_arr_len <= 0) {
+					*next = nullptr;
+					return false;
+				}
 
-			class UserType& global = *_global;
+				class UserType& global = *_global;
 
-			int state = start_state;
-			size_t braceNum = 0;
-			std::vector< class UserType* > nestedUT;
+				int state = start_state;
+				size_t braceNum = 0;
+				std::vector< class UserType* > nestedUT;
 
-			nestedUT.reserve(10);
-			nestedUT.push_back(&global);
+				nestedUT.reserve(10);
+				nestedUT.push_back(&global);
 
-			int64_t count = 0;
+				int64_t count = 0;
 
-			Test key; bool is_before_comma = false;
-			bool is_now_comma = false;
+				Test key; bool is_before_comma = false;
+				bool is_now_comma = false;
 
-			if (token_arr_start > 0) {
-				const simdjson::internal::tape_type before_type = // next_type
-					get_type(buf[imple->structural_indexes[token_arr_start - 1]]);
+				if (token_arr_start > 0) {
+					const simdjson::internal::tape_type before_type = // next_type
+						get_type(buf[imple->structural_indexes[token_arr_start - 1]]);
 
-				is_before_comma = before_type == simdjson::internal::tape_type::COMMA;
-			}
-
-
-			for (uint64_t i = 0; i < token_arr_len; ++i) {
-
-				const simdjson::internal::tape_type type = get_type(buf[imple->structural_indexes[token_arr_start + i]]);
-
-				switch (state)
-				{
-				case 0:
-				{
-					if (is_before_comma && type == simdjson::internal::tape_type::COMMA) {
-						std::cout << "before is comma\n";
-						exit(1);
-						//
-					}
+					is_before_comma = before_type == simdjson::internal::tape_type::COMMA;
+				}
 
 
-					if (token_arr_start + i > 1) {
-						const simdjson::internal::tape_type before_type =
-							get_type(buf[imple->structural_indexes[token_arr_start + i - 1]]);
+				for (uint64_t i = 0; i < token_arr_len; ++i) {
 
-						if (before_type == simdjson::internal::tape_type::START_ARRAY || before_type == simdjson::internal::tape_type::START_OBJECT) {
-							is_now_comma = false; //std::cout << "2-i " << i << "\n";
+					const simdjson::internal::tape_type type = get_type(buf[imple->structural_indexes[token_arr_start + i]]);
+
+					switch (state)
+					{
+					case 0:
+					{
+						if (is_before_comma && type == simdjson::internal::tape_type::COMMA) {
+							std::cout << "before is comma\n";
+							throw "Error in __Load... and case : , ,";
+							//
 						}
-					}
-
-					if (is_before_comma) {
-						is_now_comma = false;
-					}
-
-					if (!is_now_comma && type == simdjson::internal::tape_type::COMMA) {
-						std::cout << "now is not comma\n";
-						exit(1);
-						//
-					}
-					if (is_now_comma && type != simdjson::internal::tape_type::COMMA) {
-						std::cout << "is now comma... but not..\n";
-						exit(1);
-					}
 
 
-					is_before_comma = type == simdjson::internal::tape_type::COMMA;
+						if (token_arr_start + i > 1) {
+							const simdjson::internal::tape_type before_type =
+								get_type(buf[imple->structural_indexes[token_arr_start + i - 1]]);
 
-					if (type == simdjson::internal::tape_type::COMMA) {
+							if (before_type == simdjson::internal::tape_type::START_ARRAY || before_type == simdjson::internal::tape_type::START_OBJECT) {
+								is_now_comma = false; //std::cout << "2-i " << i << "\n";
+							}
+						}
+
+						if (is_before_comma) {
+							is_now_comma = false;
+						}
+
+						if (!is_now_comma && type == simdjson::internal::tape_type::COMMA) {
+							std::cout << "now is not comma\n";
+							throw "Error in __Load.., now is comma but, no expect.";							//
+						}
+						if (is_now_comma && type != simdjson::internal::tape_type::COMMA) {
+							std::cout << "is now comma... but not..\n";
+							throw "Error in __Load..., comma is expected but, is not";
+						}
+
+
+						is_before_comma = type == simdjson::internal::tape_type::COMMA;
+
+						if (type == simdjson::internal::tape_type::COMMA) {
+							if (token_arr_start + i + 1 < imple->n_structural_indexes) {
+								const simdjson::internal::tape_type _type =
+									get_type(buf[imple->structural_indexes[token_arr_start + i + 1]]);
+
+								if (_type == simdjson::internal::tape_type::END_ARRAY || _type == simdjson::internal::tape_type::END_OBJECT) {
+									throw "Error in __Load..,  case : , } or , ]";
+									//
+								}
+								else if (_type == simdjson::internal::tape_type::COLON) {
+									throw "Error in __Load... case :    , : ";
+								}
+
+								continue;
+							}
+							else {
+								throw "Error in __Load..., last valid char? is , ";
+							}
+						}
+
+						if (type == simdjson::internal::tape_type::COLON) {
+							throw "Error in __Load..., checked colon..";
+							//
+						}
+
+						switch (type) {
+						case simdjson::internal::tape_type::END_ARRAY:
+						case simdjson::internal::tape_type::END_OBJECT:
+
+						case simdjson::internal::tape_type::STRING:
+						case simdjson::internal::tape_type::INT64:
+						case simdjson::internal::tape_type::UINT64:
+						case simdjson::internal::tape_type::DOUBLE:
+						case simdjson::internal::tape_type::TRUE_VALUE:
+						case simdjson::internal::tape_type::FALSE_VALUE:
+						case simdjson::internal::tape_type::NULL_VALUE:
+						case simdjson::internal::tape_type::NONE: //
+							is_now_comma = true; // std::cout << "3-i " << i << "\n";
+							break;
+						}
+
 						if (token_arr_start + i + 1 < imple->n_structural_indexes) {
 							const simdjson::internal::tape_type _type =
 								get_type(buf[imple->structural_indexes[token_arr_start + i + 1]]);
 
+							//std::cout << "chk " << (int)get_type(buf[imple->structural_indexes[token_arr_start + i + 1]]) << "\n";
+
 							if (_type == simdjson::internal::tape_type::END_ARRAY || _type == simdjson::internal::tape_type::END_OBJECT) {
-								exit(1);
+								is_now_comma = false; //std::cout << "1-i " << i << "\n";
 								//
 							}
-							else if (_type == simdjson::internal::tape_type::COLON) {
-								exit(1);
-							}
-
-							continue;
 						}
 						else {
-							exit(1);
+							is_now_comma = false;
 						}
-					}
 
-					if (type == simdjson::internal::tape_type::COLON) {
-						exit(1);
-						//
-					}
-
-					switch (type) {
-					case simdjson::internal::tape_type::END_ARRAY:
-					case simdjson::internal::tape_type::END_OBJECT:
-
-					case simdjson::internal::tape_type::STRING:
-					case simdjson::internal::tape_type::INT64:
-					case simdjson::internal::tape_type::UINT64:
-					case simdjson::internal::tape_type::DOUBLE:
-					case simdjson::internal::tape_type::TRUE_VALUE:
-					case simdjson::internal::tape_type::FALSE_VALUE:
-					case simdjson::internal::tape_type::NULL_VALUE:
-					case simdjson::internal::tape_type::NONE:
-						is_now_comma = true; // std::cout << "3-i " << i << "\n";
-						break;
-					}
-
-					if (token_arr_start + i + 1 < imple->n_structural_indexes) {
-						const simdjson::internal::tape_type _type =
-							get_type(buf[imple->structural_indexes[token_arr_start + i + 1]]);
-
-						//std::cout << "chk " << (int)get_type(buf[imple->structural_indexes[token_arr_start + i + 1]]) << "\n";
-
-						if (_type == simdjson::internal::tape_type::END_ARRAY || _type == simdjson::internal::tape_type::END_OBJECT) {
-							is_now_comma = false; //std::cout << "1-i " << i << "\n";
-							//
-						}
-					}
-					else {
-						is_now_comma = false;
-					}
-
-					// Left 1
-					//else
-					if (type == simdjson::internal::tape_type::START_OBJECT ||
-						type == simdjson::internal::tape_type::START_ARRAY) { // object start, array start
+						// Left 1
+						//else
+						if (type == simdjson::internal::tape_type::START_OBJECT ||
+							type == simdjson::internal::tape_type::START_ARRAY) { // object start, array start
 
 
 
-						if (!Vec.empty()) {
+							if (!Vec.empty()) {
 
-							if (Vec[0].is_key) {
-								nestedUT[braceNum]->reserve_data_list(nestedUT[braceNum]->get_data_size() + Vec.size() / 2);
+								if (Vec[0].is_key) {
+									nestedUT[braceNum]->reserve_data_list(nestedUT[braceNum]->get_data_size() + Vec.size() / 2);
 
-								if (Vec.size() % 2 == 1) {
-									std::cout << "Vec.size()%2==1\n";
-									exit(1);
+									if (Vec.size() % 2 == 1) {
+										std::cout << "Vec.size()%2==1\n";
+										throw "Error in __Load..., key : value  error";
+									}
+
+									for (size_t x = 0; x < Vec.size(); x += 2) {
+										if (!Vec[x].is_key) {
+											std::cout << "vec[x].is not key\n";
+											throw "Error in __Load..., key : value  error";
+										}
+										if (Vec[x + 1].is_key) {
+											std::cout << "vec[x].is key\n";
+											throw "Error in __Load..., key : value  error";
+										}
+										nestedUT[braceNum]->add_item_type((Vec[x].idx), Vec[x].idx2, Vec[x].len,
+											(Vec[x + 1].idx), Vec[x + 1].idx2, Vec[x + 1].len,
+											buf, string_buf, Vec[x].id, Vec[x + 1].id);
+										//++pool;
+									}
+								}
+								else {
+									nestedUT[braceNum]->reserve_data_list(nestedUT[braceNum]->get_data_size() + Vec.size());
+
+									for (size_t x = 0; x < Vec.size(); x += 1) {
+										if (Vec[x].is_key) {
+											std::cout << "Vec[x].iskey\n";
+
+											throw "Error in __Load..., key : value  error";
+										}
+										nestedUT[braceNum]->add_item_type((Vec[x].idx), Vec[x].idx2, Vec[x].len, buf, string_buf, Vec[x].id);
+										//++pool;
+									}
 								}
 
-								for (size_t x = 0; x < Vec.size(); x += 2) {
-									if (!Vec[x].is_key) {
-										std::cout << "vec[x].is not key\n";
-										exit(1);
-									}
-									if (Vec[x + 1].is_key) {
-										std::cout << "vec[x].is key\n";
-										exit(1);
-									}
-									nestedUT[braceNum]->add_item_type((Vec[x].idx), Vec[x].idx2, Vec[x].len,
-										(Vec[x + 1].idx), Vec[x + 1].idx2, Vec[x + 1].len,
-										buf, string_buf, Vec[x].id, Vec[x + 1].id);
-									//++pool;
-								}
+								Vec.clear();
+							}
+
+							if (key.is_key) {
+								nestedUT[braceNum]->add_user_type(key.idx, key.idx2, key.len, buf, string_buf,
+									type == simdjson::internal::tape_type::START_OBJECT ? 0 : 1, key.id); // object vs array
+								key.is_key = false;// ++pool;
 							}
 							else {
-								nestedUT[braceNum]->reserve_data_list(nestedUT[braceNum]->get_data_size() + Vec.size());
-
-								for (size_t x = 0; x < Vec.size(); x += 1) {
-									if (Vec[x].is_key) {
-										std::cout << "Vec[x].iskey\n";
-										exit(1);
-									}
-									nestedUT[braceNum]->add_item_type((Vec[x].idx), Vec[x].idx2, Vec[x].len, buf, string_buf, Vec[x].id);
-									//++pool;
-								}
+								nestedUT[braceNum]->add_user_type(type == simdjson::internal::tape_type::START_OBJECT ? 0 : 1);
+								//++pool;
 							}
 
-							Vec.clear();
-						}
 
-						if (key.is_key) {
-							nestedUT[braceNum]->add_user_type(key.idx, key.idx2, key.len, buf, string_buf,
-								type == simdjson::internal::tape_type::START_OBJECT ? 0 : 1, key.id); // object vs array
-							key.is_key = false;// ++pool;
-						}
-						else {
-							nestedUT[braceNum]->add_user_type(type == simdjson::internal::tape_type::START_OBJECT ? 0 : 1);
-							//++pool;
-						}
-
-
-						class UserType* pTemp = nestedUT[braceNum]->get_data_list(nestedUT[braceNum]->get_data_size() - 1);
-
-						braceNum++;
-
-						/// new nestedUT
-						if (nestedUT.size() == braceNum) {
-							nestedUT.push_back(nullptr);
-						}
-
-						/// initial new nestedUT.
-						nestedUT[braceNum] = pTemp;
-
-						state = 0;
-
-					}
-					// Right 2
-					else if (type == simdjson::internal::tape_type::END_OBJECT ||
-						type == simdjson::internal::tape_type::END_ARRAY) {
-
-						if (type == simdjson::internal::tape_type::END_ARRAY && nestedUT[braceNum]->is_object()) {
-							std::cout << "{]";
-							exit(1);
-						}
-
-						if (type == simdjson::internal::tape_type::END_OBJECT && nestedUT[braceNum]->is_array()) {
-							std::cout << "[}";
-							exit(1);
-						}
-
-						state = 0;
-
-						if (!Vec.empty()) {
-							if (type == simdjson::internal::tape_type::END_OBJECT) {
-								nestedUT[braceNum]->reserve_data_list(nestedUT[braceNum]->get_data_size() + Vec.size() / 2);
-
-
-								if (Vec.size() % 2 == 1) {
-									std::cout << "Vec.size() is odd\n";
-									exit(1);
-								}
-
-
-								for (size_t x = 0; x < Vec.size(); x += 2) {
-									if (!Vec[x].is_key) {
-										std::cout << "is not key\n";
-										exit(1);
-									}
-									if (Vec[x + 1].is_key) {
-										std::cout << "is key\n";
-										exit(1);
-									}
-
-									nestedUT[braceNum]->add_item_type(Vec[x].idx, Vec[x].idx2, Vec[x].len,
-										Vec[x + 1].idx, Vec[x + 1].idx2, Vec[x + 1].len, buf, string_buf, Vec[x].id, Vec[x + 1].id);
-									//++pool;9
-
-								}
-							}
-							else { // END_ARRAY
-								nestedUT[braceNum]->reserve_data_list(nestedUT[braceNum]->get_data_size() + Vec.size());
-
-								for (auto& x : Vec) {
-									if (x.is_key) {
-
-										exit(1);
-									}
-
-									nestedUT[braceNum]->add_item_type((x.idx), x.idx2, x.len, buf, string_buf, x.id);
-									//++pool;
-								}
-							}
-
-							Vec.clear();
-						}
-
-
-						if (braceNum == 0) {
-							class UserType ut; //
-
-							ut.add_user_type(type == simdjson::internal::tape_type::END_OBJECT ? 2 : 3); // json -> "var_name" = val  
-							//++pool;
-
-							for (size_t i = 0; i < nestedUT[braceNum]->get_data_size(); ++i) {
-								ut.get_data_list(0)->add_user_type(nestedUT[braceNum]->get_data_list(i));
-								nestedUT[braceNum]->get_data_list(i) = nullptr;
-							}
-
-							nestedUT[braceNum]->remove_all();
-							nestedUT[braceNum]->add_user_type(ut.get_data_list(0));
-
-							ut.get_data_list(0) = nullptr;
+							class UserType* pTemp = nestedUT[braceNum]->get_data_list(nestedUT[braceNum]->get_data_size() - 1);
 
 							braceNum++;
+
+							/// new nestedUT
+							if (nestedUT.size() == braceNum) {
+								nestedUT.push_back(nullptr);
+							}
+
+							/// initial new nestedUT.
+							nestedUT[braceNum] = pTemp;
+
+							state = 0;
+
 						}
+						// Right 2
+						else if (type == simdjson::internal::tape_type::END_OBJECT ||
+							type == simdjson::internal::tape_type::END_ARRAY) {
 
-						{
-							if (braceNum < nestedUT.size()) {
-								nestedUT[braceNum] = nullptr;
+							if (type == simdjson::internal::tape_type::END_ARRAY && nestedUT[braceNum]->is_object()) {
+								std::cout << "{]";
+								throw "Error in __Load.., case : {]";
 							}
 
-							braceNum--;
+							if (type == simdjson::internal::tape_type::END_OBJECT && nestedUT[braceNum]->is_array()) {
+								std::cout << "[}";
+								throw "Error in __Load.., case : [}";
+							}
+
+							state = 0;
+
+							if (!Vec.empty()) {
+								if (type == simdjson::internal::tape_type::END_OBJECT) {
+									nestedUT[braceNum]->reserve_data_list(nestedUT[braceNum]->get_data_size() + Vec.size() / 2);
+
+
+									if (Vec.size() % 2 == 1) {
+										std::cout << "Vec.size() is odd\n";
+										throw "Error in __Load..., key : value  error";
+									}
+
+
+									for (size_t x = 0; x < Vec.size(); x += 2) {
+										if (!Vec[x].is_key) {
+											std::cout << "is not key\n";
+											throw "Error in __Load..., key : value  error";
+										}
+										if (Vec[x + 1].is_key) {
+											std::cout << "is key\n";
+											throw "Error in __Load..., key : value  error";
+										}
+
+										nestedUT[braceNum]->add_item_type(Vec[x].idx, Vec[x].idx2, Vec[x].len,
+											Vec[x + 1].idx, Vec[x + 1].idx2, Vec[x + 1].len, buf, string_buf, Vec[x].id, Vec[x + 1].id);
+										//++pool;9
+
+									}
+								}
+								else { // END_ARRAY
+									nestedUT[braceNum]->reserve_data_list(nestedUT[braceNum]->get_data_size() + Vec.size());
+
+									for (auto& x : Vec) {
+										if (x.is_key) {
+											throw "Error in __Load.., expect no key but has key...";
+										}
+
+										nestedUT[braceNum]->add_item_type((x.idx), x.idx2, x.len, buf, string_buf, x.id);
+										//++pool;
+									}
+								}
+
+								Vec.clear();
+							}
+
+
+							if (braceNum == 0) {
+								class UserType ut; //
+
+								ut.add_user_type(type == simdjson::internal::tape_type::END_OBJECT ? 2 : 3); // json -> "var_name" = val  
+								//++pool;
+
+								for (size_t i = 0; i < nestedUT[braceNum]->get_data_size(); ++i) {
+									ut.get_data_list(0)->add_user_type(nestedUT[braceNum]->get_data_list(i));
+									nestedUT[braceNum]->get_data_list(i) = nullptr;
+								}
+
+								nestedUT[braceNum]->remove_all();
+								nestedUT[braceNum]->add_user_type(ut.get_data_list(0));
+
+								ut.get_data_list(0) = nullptr;
+
+								braceNum++;
+							}
+
+							{
+								if (braceNum < nestedUT.size()) {
+									nestedUT[braceNum] = nullptr;
+								}
+
+								braceNum--;
+							}
 						}
-					}
-					else {
-						{
-							Test data;
+						else {
+							{
+								Test data;
 
-							data.idx = imple->structural_indexes[token_arr_start + i];
-							data.id = token_arr_start + i;
+								data.idx = imple->structural_indexes[token_arr_start + i];
+								data.id = token_arr_start + i;
 
-							if (token_arr_start + i + 1 < imple->n_structural_indexes) {
-								data.idx2 = imple->structural_indexes[token_arr_start + i + 1];
-							}
-							else {
-								data.idx2 = buf_len;
-							}
+								if (token_arr_start + i + 1 < imple->n_structural_indexes) {
+									data.idx2 = imple->structural_indexes[token_arr_start + i + 1];
+								}
+								else {
+									data.idx2 = buf_len;
+								}
 
-							bool is_key = false;
-							if (token_arr_start + i + 1 < imple->n_structural_indexes && buf[imple->structural_indexes[token_arr_start + i + 1]] == ':') {
-								is_key = true;
-							}
+								bool is_key = false;
+								if (token_arr_start + i + 1 < imple->n_structural_indexes && buf[imple->structural_indexes[token_arr_start + i + 1]] == ':') {
+									is_key = true;
+								}
 
-							if (is_key) {
-								data.is_key = true;
+								if (is_key) {
+									data.is_key = true;
 
-								if (token_arr_start + i + 2 < imple->n_structural_indexes) {
-									const simdjson::internal::tape_type _type = (simdjson::internal::tape_type)buf[imple->structural_indexes[token_arr_start + i + 2]];
+									if (token_arr_start + i + 2 < imple->n_structural_indexes) {
+										const simdjson::internal::tape_type _type = (simdjson::internal::tape_type)buf[imple->structural_indexes[token_arr_start + i + 2]];
 
-									if (_type == simdjson::internal::tape_type::START_ARRAY || _type == simdjson::internal::tape_type::START_OBJECT) {
-										key = std::move(data);
+										if (_type == simdjson::internal::tape_type::START_ARRAY || _type == simdjson::internal::tape_type::START_OBJECT) {
+											key = std::move(data);
+										}
+										else {
+											Vec.push_back(std::move(data));
+										}
 									}
 									else {
 										Vec.push_back(std::move(data));
 									}
+									++i;
+
+									is_now_comma = false;
+									is_before_comma = false;
+									//	std::cout << "4-i " << i << "\n";
 								}
 								else {
 									Vec.push_back(std::move(data));
 								}
-								++i;
 
-								is_now_comma = false;
-								is_before_comma = false;
-								//	std::cout << "4-i " << i << "\n";
+								state = 0;
 							}
-							else {
-								Vec.push_back(std::move(data));
-							}
-
-							state = 0;
 						}
-					}
 
-				}
-				break;
-				default:
-					// syntax err!!
-					*err = -1;
-					return false; // throw "syntax error ";
+					}
 					break;
-				}
-			}
-
-			if (next) {
-				*next = nestedUT[braceNum];
-			}
-
-			if (Vec.empty() == false) {
-				if (Vec[0].is_key) {
-					for (size_t x = 0; x < Vec.size(); x += 2) {
-						if (!Vec[x].is_key) {
-							exit(1);
-						}
-
-						if (Vec.size() % 2 == 1) {
-							exit(1);
-						}
-
-
-						if (Vec[x + 1].is_key) {
-							exit(1);
-						}
-
-						nestedUT[braceNum]->add_item_type(Vec[x].idx, Vec[x].idx2, Vec[x].len, Vec[x + 1].idx, Vec[x + 1].idx2, Vec[x + 1].len,
-							buf, string_buf, Vec[x].id, Vec[x + 1].id);
-						//++pool;
-					}
-				}
-				else {
-					for (size_t x = 0; x < Vec.size(); x += 1) {
-						if (Vec[x].is_key) {
-							exit(1);
-						}
-
-						nestedUT[braceNum]->add_item_type(Vec[x].idx, Vec[x].idx2, Vec[x].len, buf, string_buf, Vec[x].id);
-						//++pool;
+					default:
+						// syntax err!!
+						*err = -1;
+						return false; // throw "syntax error ";
+						break;
 					}
 				}
 
-				Vec.clear();
-			}
+				if (next) {
+					*next = nestedUT[braceNum];
+				}
 
-			if (state != last_state) {
-				*err = -2;
+				if (Vec.empty() == false) {
+					if (Vec[0].is_key) {
+						for (size_t x = 0; x < Vec.size(); x += 2) {
+							if (!Vec[x].is_key) {
+								throw "Error in __Load..., key : value  error";
+							}
+
+							if (Vec.size() % 2 == 1) {
+								throw "Error in __Load..., key : value  error";
+							}
+
+
+							if (Vec[x + 1].is_key) {
+								throw "Error in __Load..., key : value  error";
+							}
+
+							nestedUT[braceNum]->add_item_type(Vec[x].idx, Vec[x].idx2, Vec[x].len, Vec[x + 1].idx, Vec[x + 1].idx2, Vec[x + 1].len,
+								buf, string_buf, Vec[x].id, Vec[x + 1].id);
+							//++pool;
+						}
+					}
+					else {
+						for (size_t x = 0; x < Vec.size(); x += 1) {
+							if (Vec[x].is_key) {
+								throw "Error in __Load..., array element has key..";
+							}
+
+							nestedUT[braceNum]->add_item_type(Vec[x].idx, Vec[x].idx2, Vec[x].len, buf, string_buf, Vec[x].id);
+							//++pool;
+						}
+					}
+
+					Vec.clear();
+				}
+
+				if (state != last_state) {
+					*err = -2;
+					return false;
+					// throw STRING("error final state is not last_state!  : ") + toStr(state);
+				}
+
+				//after_pool = pool;
+				int b = clock();
+				//std::cout << "parse thread " << b - a << "ms\n";
+				return true;
+			}
+			catch (const std::string& _err) {
+				*err = -10;
+				std::cout << _err << "\n";
 				return false;
-				// throw STRING("error final state is not last_state!  : ") + toStr(state);
 			}
-
-			//after_pool = pool;
-			int b = clock();
-			//std::cout << "parse thread " << b - a << "ms\n";
-			return true;
+			catch (...) {
+				*err = -11;
+				return false;
+			}
 		}
 
 		static int64_t FindDivisionPlace(char* buf, simdjson::internal::dom_parser_implementation* imple, int64_t start, int64_t last)
@@ -1689,235 +1677,256 @@ namespace claujson {
 			simdjson::internal::dom_parser_implementation* imple, int64_t& length,
 			std::vector<int64_t>& start, const int parse_num) // first, strVec.empty() must be true!!
 		{
-			int a__ = clock();
-			{
-				// chk clear?
-
-				const int pivot_num = parse_num - 1;
-				//size_t token_arr_len = length; // size?
-
-				class UserType _global;
-
-				bool first = true;
-				int64_t sum = 0;
-
-				{ int a_ = clock();
-				std::set<int64_t> _pivots;
-				std::vector<int64_t> pivots;
-				//const int64_t num = token_arr_len; //
-
-				if (pivot_num > 0) {
-					std::vector<int64_t> pivot;
-					pivots.reserve(pivot_num);
-					pivot.reserve(pivot_num);
-
-					pivot.push_back(start[0]);
-
-					for (int i = 1; i < parse_num; ++i) {
-						pivot.push_back(FindDivisionPlace(buf, imple, start[i], start[i + 1] - 1));
-					}
-
-					for (size_t i = 0; i < pivot.size(); ++i) {
-						if (pivot[i] != -1) {
-							_pivots.insert(pivot[i]);
-						}
-					}
-
-					for (auto& x : _pivots) {
-						pivots.push_back(x);
-					}
-
-					pivots.push_back(length);
-				}
-				else {
-					pivots.push_back(start[0]);
-					pivots.push_back(length);
-				}
-				int b_ = clock();
-				//std::cout << "pivots.. " << b_ - a_ << "ms\n";
-				std::vector<class UserType*> next(pivots.size() - 1, nullptr);
+			try {
+				int a__ = clock();
 				{
+					// chk clear?
 
-					std::vector<class UserType> __global(pivots.size() - 1);
-					for (int i = 0; i < __global.size(); ++i) {
-						__global[i].type = -2;
+					const int pivot_num = parse_num - 1;
+					//size_t token_arr_len = length; // size?
+
+					class UserType _global;
+
+					bool first = true;
+					int64_t sum = 0;
+
+					{ int a_ = clock();
+					std::set<int64_t> _pivots;
+					std::vector<int64_t> pivots;
+					//const int64_t num = token_arr_len; //
+
+					if (pivot_num > 0) {
+						std::vector<int64_t> pivot;
+						pivots.reserve(pivot_num);
+						pivot.reserve(pivot_num);
+
+						pivot.push_back(start[0]);
+
+						for (int i = 1; i < parse_num; ++i) {
+							pivot.push_back(FindDivisionPlace(buf, imple, start[i], start[i + 1] - 1));
+						}
+
+						for (size_t i = 0; i < pivot.size(); ++i) {
+							if (pivot[i] != -1) {
+								_pivots.insert(pivot[i]);
+							}
+						}
+
+						for (auto& x : _pivots) {
+							pivots.push_back(x);
+						}
+
+						pivots.push_back(length);
 					}
-
-
-					std::vector<std::thread> thr(pivots.size() - 1);
-
-
-					std::vector<int> err(pivots.size() - 1, 0);
-
-					int c1 = clock();
+					else {
+						pivots.push_back(start[0]);
+						pivots.push_back(length);
+					}
+					int b_ = clock();
+					//std::cout << "pivots.. " << b_ - a_ << "ms\n";
+					std::vector<class UserType*> next(pivots.size() - 1, nullptr);
 					{
-						int64_t idx = pivots[1] - pivots[0];
-						int64_t _token_arr_len = idx;
 
-
-						thr[0] = std::thread(__LoadData, (buf), buf_len, (string_buf), (imple), start[0], _token_arr_len, &__global[0], 0, 0,
-							&next[0], &err[0], 0);
-						//HANDLE th = thr[0].native_handle();
-						//SetThreadPriority(th, THREAD_PRIORITY_HIGHEST);
-					}
-
-					for (size_t i = 1; i < pivots.size() - 1; ++i) {
-						int64_t _token_arr_len = pivots[i + 1] - pivots[i];
-
-						thr[i] = std::thread(__LoadData, (buf), buf_len, (string_buf), (imple), pivots[i], _token_arr_len, &__global[i], 0, 0,
-							&next[i], &err[i], i);
-
-						//HANDLE th = thr[i].native_handle();
-						//SetThreadPriority(th, THREAD_PRIORITY_HIGHEST);
-					}
-					int c2 = clock();
-					//	std::cout << "chk... " << c2 - c1 << "\n";
-
-					auto a = std::chrono::steady_clock::now();
-
-					// wait
-					for (size_t i = 0; i < thr.size(); ++i) {
-						thr[i].join();
-					}
-
-					auto b = std::chrono::steady_clock::now();
-					auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(b - a);
-					std::cout << "parse1 " << dur.count() << "ms\n";
-
-					for (size_t i = 0; i < err.size(); ++i) {
-						switch (err[i]) {
-						case 0:
-							break;
-						case -1:
-						case -4:
-							std::cout << "Syntax Error\n"; return false;
-							break;
-						case -2:
-							std::cout << "error final state is not last_state!\n"; return false;
-							break;
-						case -3:
-							std::cout << "error x > buffer + buffer_len:\n"; return false;
-							break;
-						default:
-							std::cout << "unknown parser error\n"; return false;
-							break;
+						std::vector<class UserType> __global(pivots.size() - 1);
+						for (int i = 0; i < __global.size(); ++i) {
+							__global[i].type = -2;
 						}
-					}
 
-					// Merge
-					//try
-					{
-						int i = 0;
-						std::vector<int> chk(parse_num, 0);
-						auto x = next.begin();
-						auto y = __global.begin();
-						while (true) {
-							if (y->get_data_size() == 0) {
-								chk[i] = 1;
-							}
 
-							++x;
-							++y;
-							++i;
+						std::vector<std::thread> thr(pivots.size() - 1);
 
-							if (x == next.end()) {
+
+						std::vector<int> err(pivots.size() - 1, 0);
+
+						int c1 = clock();
+						{
+							int64_t idx = pivots[1] - pivots[0];
+							int64_t _token_arr_len = idx;
+
+
+							thr[0] = std::thread(__LoadData, (buf), buf_len, (string_buf), (imple), start[0], _token_arr_len, &__global[0], 0, 0,
+								&next[0], &err[0], 0);
+							//HANDLE th = thr[0].native_handle();
+							//SetThreadPriority(th, THREAD_PRIORITY_HIGHEST);
+						}
+
+						auto a = std::chrono::steady_clock::now();
+
+						for (size_t i = 1; i < pivots.size() - 1; ++i) {
+							int64_t _token_arr_len = pivots[i + 1] - pivots[i];
+
+							thr[i] = std::thread(__LoadData, (buf), buf_len, (string_buf), (imple), pivots[i], _token_arr_len, &__global[i], 0, 0,
+								&next[i], &err[i], i);
+
+							//HANDLE th = thr[i].native_handle();
+							//SetThreadPriority(th, THREAD_PRIORITY_HIGHEST);
+						}
+						int c2 = clock();
+						//	std::cout << "chk... " << c2 - c1 << "\n";
+
+						
+						// wait
+						for (size_t i = 0; i < thr.size(); ++i) {
+							thr[i].join();
+						}
+
+						auto b = std::chrono::steady_clock::now();
+						auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(b - a);
+						std::cout << "parse1 " << dur.count() << "ms\n";
+
+
+						// check..
+						for (size_t i = 0; i < err.size(); ++i) {
+							switch (err[i]) {
+							case 0:
+								break;
+							case -10:
+							case -11:
+								return false;
+								break;
+							case -1:
+							case -4:
+								std::cout << "Syntax Error\n"; return false;
+								break;
+							case -2:
+								std::cout << "error final state is not last_state!\n"; return false;
+								break;
+							case -3:
+								std::cout << "error x > buffer + buffer_len:\n"; return false;
+								break;
+							default:
+								std::cout << "unknown parser error\n"; return false;
 								break;
 							}
 						}
 
-						uint64_t start = 0;
-						uint64_t last = pivots.size() - 1 - 1;
+						// Merge
+					
+						{
+							int i = 0;
+							std::vector<int> chk(parse_num, 0);
+							auto x = next.begin();
+							auto y = __global.begin();
+							while (true) {
+								if (y->get_data_size() == 0) {
+									chk[i] = 1;
+								}
 
-						for (int i = 0; i < pivots.size() - 1; ++i) {
-							if (chk[i] == 0) {
-								start = i;
-								break;
-							}
-						}
+								++x;
+								++y;
+								++i;
 
-						for (uint64_t i = pivots.size() - 1 - 1; i >= 0; --i) {
-							if (chk[i] == 0) {
-								last = i;
-								break;
-							}
-						}
-
-						if (__global[start].get_data_size() > 0 && __global[start].get_data_list(0)->is_user_type()
-							&& ((UserType*)__global[start].get_data_list(0))->is_virtual()) {
-							std::cout << "not valid file1\n";
-							throw 1;
-						}
-						if (next[last] && next[last]->get_parent() != nullptr) {
-							std::cout << "not valid file2\n";
-							throw 2;
-						}
-
-
-
-						int err = Merge(&_global, &__global[start], &next[start]);
-						if (-1 == err || (pivots.size() == 0 && 1 == err)) {
-							std::cout << "not valid file3\n";
-							throw 3;
-						}
-
-						for (uint64_t i = start + 1; i <= last; ++i) {
-
-							if (chk[i]) {
-								continue;
-							}
-
-							// linearly merge and error check...
-							uint64_t before = i - 1;
-							for (uint64_t k = i - 1; k >= 0; --k) {
-								if (chk[k] == 0) {
-									before = k;
+								if (x == next.end()) {
 									break;
 								}
 							}
 
-							int err = Merge(next[before], &__global[i], &next[i]);
+							uint64_t start = 0;
+							uint64_t last = pivots.size() - 1 - 1;
 
-							if (-1 == err) {
-								std::cout << "chk " << i << " " << __global.size() << "\n";
-								std::cout << "not valid file4\n";
-								throw 4;
+							for (int i = 0; i < pivots.size() - 1; ++i) {
+								if (chk[i] == 0) {
+									start = i;
+									break;
+								}
 							}
-							else if (i == last && 1 == err) {
-								std::cout << "not valid file5\n";
-								throw 5;
+
+							for (uint64_t i = pivots.size() - 1 - 1; i >= 0; --i) {
+								if (chk[i] == 0) {
+									last = i;
+									break;
+								}
+							}
+
+							if (__global[start].get_data_size() > 0 && __global[start].get_data_list(0)->is_user_type()
+								&& ((UserType*)__global[start].get_data_list(0))->is_virtual()) {
+								std::cout << "not valid file1\n";
+								throw 1;
+							}
+							if (next[last] && next[last]->get_parent() != nullptr) {
+								std::cout << "not valid file2\n";
+								throw 2;
+							}
+
+
+
+							int err = Merge(&_global, &__global[start], &next[start]);
+							if (-1 == err || (pivots.size() == 0 && 1 == err)) {
+								std::cout << "not valid file3\n";
+								throw 3;
+							}
+
+							for (uint64_t i = start + 1; i <= last; ++i) {
+
+								if (chk[i]) {
+									continue;
+								}
+
+								// linearly merge and error check...
+								uint64_t before = i - 1;
+								for (uint64_t k = i - 1; k >= 0; --k) {
+									if (chk[k] == 0) {
+										before = k;
+										break;
+									}
+								}
+
+								int err = Merge(next[before], &__global[i], &next[i]);
+
+								if (-1 == err) {
+									std::cout << "chk " << i << " " << __global.size() << "\n";
+									std::cout << "not valid file4\n";
+									throw 4;
+								}
+								else if (i == last && 1 == err) {
+									std::cout << "not valid file5\n";
+									throw 5;
+								}
 							}
 						}
+						//catch (...) {
+							//throw "in Merge, error";
+						//	return false;
+						//}
+						//
+
+						if (_global.get_data_size() > 1) {
+							std::cout << "not valid file6\n";
+							throw 6;
+						}
+
+
+						auto c = std::chrono::steady_clock::now();
+						auto dur2 = std::chrono::duration_cast<std::chrono::milliseconds>(c - b);
+						std::cout << "parse2 " << dur2.count() << "ms\n";
 					}
-					//catch (...) {
-						//throw "in Merge, error";
-					//	return false;
-					//}
-					//
-
-					if (_global.get_data_size() > 1) {
-						std::cout << "not valid file6\n";
-						throw 6;
 					}
+					int a = clock();
 
+					//Merge(&global, &_global, nullptr);
 
-					auto c = std::chrono::steady_clock::now();
-					auto dur2 = std::chrono::duration_cast<std::chrono::milliseconds>(c - b);
-					std::cout << "parse2 " << dur2.count() << "ms\n";
+					global = std::move(_global);
+
+					int b = clock();
+					std::cout << "chk " << b - a << "ms\n";
+
+					//	std::cout << clock() - a__ << "ms\n";
 				}
-				}
-				int a = clock();
-
-				//Merge(&global, &_global, nullptr);
-
-				global = std::move(_global);
-				
-				int b = clock();
-				std::cout << "chk " << b - a << "ms\n";
-
-			//	std::cout << clock() - a__ << "ms\n";
+				//	std::cout << clock() - a__ << "ms\n";
+				return true;
 			}
-			//	std::cout << clock() - a__ << "ms\n";
-			return true;
+			catch (int err) {
+				std::cout << "merge error " << err << "\n";
+				return false;
+			}
+			catch (const std::string& err) {
+				std::cout << err << "\n";
+				return false;
+			}
+			catch (...) {
+				std::cout << "interal error\n";
+				return false;
+			}
 
 		}
 		static bool parse(class UserType& global, char* buf, size_t buf_len,

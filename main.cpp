@@ -13,26 +13,6 @@
 
 using namespace std::literals::string_view_literals;
 
-namespace claujson {
-	/*UserType* ChkPool(UserType*& node, PoolManager& new_manager) {
-		if (nullptr == node) { return nullptr; }
-	
-		UserType* x = node;
-		node = new_manager.Alloc();
-		*node = *x;
-
-		node->next_dead = nullptr;
-
-		for (size_t i = 0; i < node->data.size(); ++i) {
-			node->data[i]->parent = node;
-			ChkPool(node->data[i], new_manager);
-		}
-
-		return node;
-	}
-	*/
-}
-
 int main(int argc, char* argv[])
 {
 	//getchar();
@@ -53,12 +33,9 @@ int main(int argc, char* argv[])
 			std::cout << "total " << b - a << "ms\n";
 
 
-
-
-
 			//claujson::LoadData::_save(std::cout, &ut);
 			//claujson::LoadData::save(std::cout, ut);
-			//claujson::LoadData::save("output6.json", ut);
+			//claujson::LoadData::save("output8.json", ut);
 			int c = clock();
 			std::cout << c - b << "ms\n";
 
