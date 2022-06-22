@@ -1,8 +1,6 @@
 /* auto-generated on 2022-05-26 16:15:49 -0400. Do not edit! */
 /* begin file src/simdjson.cpp */
 
-#pragma once
-
 #include "simdjson.h"
 
 SIMDJSON_PUSH_DISABLE_WARNINGS

@@ -78,9 +78,14 @@ namespace claujson {
 			_type = simdjson::internal::tape_type::NONE;
 		}
 
-		const std::string* get_str_val() const {
+		std::string& get_str_val() {
 			// type check...
-			return _str_val;
+			return *_str_val;
+		}
+
+		const std::string& get_str_val() const {
+			// type check...
+			return *_str_val;
 		}
 
 		void set_int(long long x) {
@@ -165,6 +170,15 @@ namespace claujson {
 				case simdjson::internal::tape_type::STRING:
 					return *this->_str_val == *other._str_val;
 					break;
+				case simdjson::internal::tape_type::INT64:
+					return this->_int_val ==other._int_val;
+					break;
+				case simdjson::internal::tape_type::UINT64:
+					return this->_uint_val == other._uint_val;
+					break;
+				case simdjson::internal::tape_type::DOUBLE:
+					return this->_float_val == other._float_val;
+					break;
 				}
 				return true;
 			}
@@ -177,7 +191,17 @@ namespace claujson {
 				case simdjson::internal::tape_type::STRING:
 					return *this->_str_val < *other._str_val;
 					break;
+				case simdjson::internal::tape_type::INT64:
+					return this->_int_val < other._int_val;
+					break;
+				case simdjson::internal::tape_type::UINT64:
+					return this->_uint_val < other._uint_val;
+					break;
+				case simdjson::internal::tape_type::DOUBLE:
+					return this->_float_val < other._float_val;
+					break;
 				}
+
 			}
 			return false;
 		}
@@ -278,108 +302,108 @@ namespace claujson {
 #endif
 
 namespace simdjson {
-	namespace SIMDJSON_IMPLEMENTATION {
+	
+	// fallback
 
+	struct writer {
+		/** The next place to write to tape */
+		uint64_t* next_tape_loc;
 
-		struct Writer {
+		/** Write a signed 64-bit value to tape. */
+		simdjson_really_inline void append_s64(int64_t value) noexcept;
 
-			/** The next place to write to tape */
-			uint64_t* next_tape_loc;
-
-			/** Write a signed 64-bit value to tape. */
-			simdjson_really_inline void append_s64(int64_t value) noexcept;
-
-			/** Write an unsigned 64-bit value to tape. */
-			simdjson_really_inline void append_u64(uint64_t value) noexcept;
-
-			/** Write a double value to tape. */
-			simdjson_really_inline void append_double(double value) noexcept;
-
-			/**
-			 * Append a tape entry (an 8-bit type,and 56 bits worth of value).
-			 */
-			simdjson_really_inline void append(uint64_t val, internal::tape_type t) noexcept;
-
-			/**
-			 * Skip the current tape entry without writing.
-			 *
-			 * Used to skip the start of the container, since we'll come back later to fill it in when the
-			 * container ends.
-			 */
-			simdjson_really_inline void skip() noexcept;
-
-			/**
-			 * Skip the number of tape entries necessary to write a large u64 or i64.
-			 */
-			simdjson_really_inline void skip_large_integer() noexcept;
-
-			/**
-			 * Skip the number of tape entries necessary to write a double.
-			 */
-			simdjson_really_inline void skip_double() noexcept;
-
-			/**
-			 * Write a value to a known location on tape.
-			 *
-			 * Used to go back and write out the start of a container after the container ends.
-			 */
-			simdjson_really_inline static void write(uint64_t& tape_loc, uint64_t val, internal::tape_type t) noexcept;
-
-		private:
-			/**
-			 * Append both the tape entry, and a supplementary value following it. Used for types that need
-			 * all 64 bits, such as double and uint64_t.
-			 */
-			template<typename T>
-			simdjson_really_inline void append2(uint64_t val, T val2, internal::tape_type t) noexcept;
-		}; // struct number_writer
-
-		simdjson_really_inline void Writer::append_s64(int64_t value) noexcept {
-			append2(0, value, internal::tape_type::INT64);
-		}
-
-		simdjson_really_inline void Writer::append_u64(uint64_t value) noexcept {
-			append(0, internal::tape_type::UINT64);
-			*next_tape_loc = value;
-			next_tape_loc++;
-		}
+		/** Write an unsigned 64-bit value to tape. */
+		simdjson_really_inline void append_u64(uint64_t value) noexcept;
 
 		/** Write a double value to tape. */
-		simdjson_really_inline void Writer::append_double(double value) noexcept {
-			append2(0, value, internal::tape_type::DOUBLE);
-		}
+		simdjson_really_inline void append_double(double value) noexcept;
 
-		simdjson_really_inline void Writer::skip() noexcept {
-			next_tape_loc++;
-		}
+		/**
+		 * Append a tape entry (an 8-bit type,and 56 bits worth of value).
+		 */
+		simdjson_really_inline void append(uint64_t val, internal::tape_type t) noexcept;
 
-		simdjson_really_inline void Writer::skip_large_integer() noexcept {
-			next_tape_loc += 2;
-		}
+		/**
+		 * Skip the current tape entry without writing.
+		 *
+		 * Used to skip the start of the container, since we'll come back later to fill it in when the
+		 * container ends.
+		 */
+		simdjson_really_inline void skip() noexcept;
 
-		simdjson_really_inline void Writer::skip_double() noexcept {
-			next_tape_loc += 2;
-		}
+		/**
+		 * Skip the number of tape entries necessary to write a large u64 or i64.
+		 */
+		simdjson_really_inline void skip_large_integer() noexcept;
 
-		simdjson_really_inline void Writer::append(uint64_t val, internal::tape_type t) noexcept {
-			*next_tape_loc = val | ((uint64_t(char(t))) << 56);
-			next_tape_loc++;
-		}
+		/**
+		 * Skip the number of tape entries necessary to write a double.
+		 */
+		simdjson_really_inline void skip_double() noexcept;
 
+		/**
+		 * Write a value to a known location on tape.
+		 *
+		 * Used to go back and write out the start of a container after the container ends.
+		 */
+		simdjson_really_inline static void write(uint64_t& tape_loc, uint64_t val, internal::tape_type t) noexcept;
+
+	private:
+		/**
+		 * Append both the tape entry, and a supplementary value following it. Used for types that need
+		 * all 64 bits, such as double and uint64_t.
+		 */
 		template<typename T>
-		simdjson_really_inline void Writer::append2(uint64_t val, T val2, internal::tape_type t) noexcept {
-			append(val, t);
-			static_assert(sizeof(val2) == sizeof(*next_tape_loc), "Type is not 64 bits!");
-			memcpy(next_tape_loc, &val2, sizeof(val2));
-			next_tape_loc++;
-		}
+		simdjson_really_inline void append2(uint64_t val, T val2, internal::tape_type t) noexcept;
+	}; // struct number_writer
 
-		simdjson_really_inline void Writer::write(uint64_t& tape_loc, uint64_t val, internal::tape_type t) noexcept {
-			tape_loc = val | ((uint64_t(char(t))) << 56);
-		}
+	simdjson_really_inline void writer::append_s64(int64_t value) noexcept {
+		append2(0, value, internal::tape_type::INT64);
+	}
 
-	};
+	simdjson_really_inline void writer::append_u64(uint64_t value) noexcept {
+		append(0, internal::tape_type::UINT64);
+		*next_tape_loc = value;
+		next_tape_loc++;
+	}
 
+	/** Write a double value to tape. */
+	simdjson_really_inline void writer::append_double(double value) noexcept {
+		append2(0, value, internal::tape_type::DOUBLE);
+	}
+
+	simdjson_really_inline void writer::skip() noexcept {
+		next_tape_loc++;
+	}
+
+	simdjson_really_inline void writer::skip_large_integer() noexcept {
+		next_tape_loc += 2;
+	}
+
+	simdjson_really_inline void writer::skip_double() noexcept {
+		next_tape_loc += 2;
+	}
+
+	simdjson_really_inline void writer::append(uint64_t val, internal::tape_type t) noexcept {
+		*next_tape_loc = val | ((uint64_t(char(t))) << 56);
+		next_tape_loc++;
+	}
+
+	template<typename T>
+	simdjson_really_inline void writer::append2(uint64_t val, T val2, internal::tape_type t) noexcept {
+		append(val, t);
+		static_assert(sizeof(val2) == sizeof(*next_tape_loc), "Type is not 64 bits!");
+		memcpy(next_tape_loc, &val2, sizeof(val2));
+		next_tape_loc++;
+	}
+
+	simdjson_really_inline void writer::write(uint64_t& tape_loc, uint64_t val, internal::tape_type t) noexcept {
+		tape_loc = val | ((uint64_t(char(t))) << 56);
+	}
+}
+
+
+namespace claujson {
 	// todo 
 	//- add bool is_key ...
 	INLINE claujson::Data& Convert(::claujson::Data& data, uint64_t idx, uint64_t idx2, uint64_t len, bool key,
@@ -438,18 +462,18 @@ namespace simdjson {
 			std::unique_ptr<uint8_t[]> copy;
 
 			uint64_t temp[2];
-			SIMDJSON_IMPLEMENTATION::Writer writer{ temp };
+			simdjson::writer writer{ temp };
 			uint8_t* value = reinterpret_cast<uint8_t*>(buf + idx);
 
 			if (id == 0) {
-				copy = std::unique_ptr<uint8_t[]>(new (std::nothrow) uint8_t[idx2 - idx + SIMDJSON_PADDING]);
+				copy = std::unique_ptr<uint8_t[]>(new (std::nothrow) uint8_t[idx2 - idx + simdjson::SIMDJSON_PADDING]);
 				if (copy.get() == nullptr) { throw "Error in Convert for new"; } // cf) new UserType?
 				std::memcpy(copy.get(), &buf[idx], idx2 - idx);
-				std::memset(copy.get() + idx2 - idx, ' ', SIMDJSON_PADDING);
+				std::memset(copy.get() + idx2 - idx, ' ', simdjson::SIMDJSON_PADDING);
 				value = copy.get();
 			}
 
-			if (auto x = SIMDJSON_IMPLEMENTATION::numberparsing::parse_number<SIMDJSON_IMPLEMENTATION::Writer>(value, writer)
+			if (auto x = simdjson::SIMDJSON_IMPLEMENTATION::numberparsing::parse_number<simdjson::writer>(value, writer)
 				; x != simdjson::error_code::SUCCESS) {
 				std::cout << "parse number error. " << x << "\n";
 				throw "Error in Convert to parse number";
@@ -525,6 +549,10 @@ namespace claujson {
 		}
 
 		ItemType& operator=(const ItemType& other) {
+			if (this == &other) {
+				return *this;
+			}
+
 			key = (other.key);
 			data = (other.data);
 			has_key = other.has_key;
@@ -580,15 +608,15 @@ namespace claujson {
 
 		int type = -1; // 0 - object, 1 - array, 2 - virtual object, 3 - virtual array, 4 - item, -1 - root, -2 - only in parse... -4 ..
 
-		char temp[24];
+		char temp[24] = { };
 	public:
 		//INLINE const static size_t npos = -1; // ?
 		// chk type?
 		bool operator<(const UserType& other) const {
-			return *(value.key.get_str_val()) < *(other.value.key.get_str_val());
+			return (value.key) < (other.value.key);
 		}
 		bool operator==(const UserType& other) const {
-			return *(value.key.get_str_val()) == *(other.value.key.get_str_val());
+			return (value.key) == (other.value.key);
 		}
 
 	public:
@@ -599,7 +627,7 @@ namespace claujson {
 		// find_ut..
 		UserType* find_ut(std::string_view key) {
 			for (size_t i = 0; i < data.size(); ++i) {
-				if (data[i]->is_user_type() && *data[i]->value.key.get_str_val() == key) {
+				if (data[i]->is_user_type() && data[i]->value.key.get_str_val() == key) {
 					return data[i];
 				}
 			}
@@ -608,7 +636,7 @@ namespace claujson {
 
 		const UserType* find_ut(std::string_view key) const {
 			for (size_t i = 0; i < data.size(); ++i) {
-				if (data[i]->is_user_type() && *data[i]->value.key.get_str_val() == key) {
+				if (data[i]->is_user_type() && data[i]->value.key.get_str_val() == key) {
 					return data[i];
 				}
 			}
@@ -831,6 +859,10 @@ namespace claujson {
 		void add_object_with_key(UserType* object) {
 			const auto& name = object->value;
 
+			if (object->is_item_type()) {
+				throw "Error in add_object_with_key, it is not object, but item_type";
+			}
+
 			if (is_array()) {
 				throw "Error in add_object_with_key";
 			}
@@ -851,6 +883,11 @@ namespace claujson {
 		void add_array_with_key(UserType* _array) {
 			const auto& name = _array->value;
 
+			if (_array->is_item_type()) {
+				throw "Error in add_object_with_key, it is not object, but item_type";
+			}
+
+
 			if (is_array()) {
 				throw "Error in add_array_with_key";
 			}
@@ -870,6 +907,11 @@ namespace claujson {
 		void add_object_with_no_key(UserType* object) {
 			const Data& name = object->value.key;
 
+			if (object->is_item_type()) {
+				throw "Error in add_object_with_key, it is not object, but item_type";
+			}
+
+
 			if (is_object()) {
 				throw "Error in add_object_with_no_key";
 			}
@@ -888,6 +930,11 @@ namespace claujson {
 
 		void add_array_with_no_key(UserType* _array) {
 			const Data& name = _array->value.key;
+
+			if (_array->is_item_type()) {
+				throw "Error in add_object_with_key, it is not object, but item_type";
+			}
+
 
 			if (is_object()) {
 				throw "Error in add_array_with_no_key";
@@ -960,7 +1007,7 @@ namespace claujson {
 
 			Data temp;
 
-			simdjson::Convert(temp, idx, idx2, len, true, buf, string_buf, id);
+			claujson::Convert(temp, idx, idx2, len, true, buf, string_buf, id);
 
 
 			if (temp.type() != simdjson::internal::tape_type::STRING) {
@@ -1011,8 +1058,8 @@ namespace claujson {
 				Data temp;
 				Data temp2;
 
-				simdjson::Convert(temp, idx11, idx12, len1, true, buf, string_buf, id);
-				simdjson::Convert(temp2, idx21, idx22, len2, false, buf, string_buf, id2);
+				claujson::Convert(temp, idx11, idx12, len1, true, buf, string_buf, id);
+				claujson::Convert(temp2, idx21, idx22, len2, false, buf, string_buf, id2);
 
 				if (temp.type() != simdjson::internal::tape_type::STRING) {
 					throw "Error in add_item_type, key is not string";
@@ -1040,7 +1087,7 @@ namespace claujson {
 
 			Data temp2;
 
-			simdjson::Convert(temp2, idx21, idx22, len2, false, buf, string_buf, id);
+			claujson::Convert(temp2, idx21, idx22, len2, false, buf, string_buf, id);
 
 			this->data.push_back(new UserType(ItemType(Data(), std::move(temp2), false), 4));
 		}
@@ -1228,7 +1275,7 @@ namespace claujson {
 
 	private:
 
-		struct Test { // need to rename.
+		struct TokenTemp { // need to rename.
 			int64_t idx;
 			int64_t idx2;
 			int64_t len;
@@ -1245,7 +1292,7 @@ namespace claujson {
 			try {
 				int a = clock();
 
-				std::vector<Test> Vec;
+				std::vector<TokenTemp> Vec;
 
 				if (token_arr_len <= 0) {
 					*next = nullptr;
@@ -1263,7 +1310,7 @@ namespace claujson {
 
 				int64_t count = 0;
 
-				Test key; bool is_before_comma = false;
+				TokenTemp key; bool is_before_comma = false;
 				bool is_now_comma = false;
 
 				if (token_arr_start > 0) {
@@ -1534,7 +1581,7 @@ namespace claujson {
 						}
 						else {
 							{
-								Test data;
+								TokenTemp data;
 
 								data.idx = imple->structural_indexes[token_arr_start + i];
 								data.id = token_arr_start + i;
@@ -1641,7 +1688,7 @@ namespace claujson {
 				//std::cout << "parse thread " << b - a << "ms\n";
 				return true;
 			}
-			catch (const std::string& _err) {
+			catch (const char* _err) {
 				*err = -10;
 				std::cout << _err << "\n";
 				return false;
@@ -1919,7 +1966,7 @@ namespace claujson {
 				std::cout << "merge error " << err << "\n";
 				return false;
 			}
-			catch (const std::string& err) {
+			catch (const char* err) {
 				std::cout << err << "\n";
 				return false;
 			}
@@ -1988,8 +2035,8 @@ namespace claujson {
 						if (
 							x.key.type() == simdjson::internal::tape_type::STRING) {
 							stream << "\"";
-							for (uint64_t j = 0; j < ((std::string&)(*x.key.get_str_val())).size(); ++j) {
-								switch ((*x.key.get_str_val())[j]) {
+							for (uint64_t j = 0; j < ((std::string&)(x.key.get_str_val())).size(); ++j) {
+								switch ((x.key.get_str_val())[j]) {
 								case '\\':
 									stream << "\\\\";
 									break;
@@ -2001,13 +2048,13 @@ namespace claujson {
 									break;
 
 								default:
-									if (isprint((*x.key.get_str_val())[j]))
+									if (isprint((x.key.get_str_val())[j]))
 									{
-										stream << (*x.key.get_str_val())[j];
+										stream << (x.key.get_str_val())[j];
 									}
 									else
 									{
-										int code = (*x.key.get_str_val())[j];
+										int code = (x.key.get_str_val())[j];
 										if (code > 0 && (code < 0x20 || code == 0x7F))
 										{
 											char buf[] = "\\uDDDD";
@@ -2015,7 +2062,7 @@ namespace claujson {
 											stream << buf;
 										}
 										else {
-											stream << (*x.key.get_str_val())[j];
+											stream << (x.key.get_str_val())[j];
 										}
 									}
 								}
@@ -2054,8 +2101,8 @@ namespace claujson {
 						if (
 							x.key.type() == simdjson::internal::tape_type::STRING) {
 							stream << "\"";
-							for (uint64_t j = 0; j < (*x.key.get_str_val()).size(); ++j) {
-								switch ((*x.key.get_str_val())[j]) {
+							for (uint64_t j = 0; j < (x.key.get_str_val()).size(); ++j) {
+								switch ((x.key.get_str_val())[j]) {
 								case '\\':
 									stream << "\\\\";
 									break;
@@ -2067,13 +2114,13 @@ namespace claujson {
 									break;
 
 								default:
-									if (isprint((*x.key.get_str_val())[j]))
+									if (isprint((x.key.get_str_val())[j]))
 									{
-										stream << (*x.key.get_str_val())[j];
+										stream << (x.key.get_str_val())[j];
 									}
 									else
 									{
-										int code = (*x.key.get_str_val())[j];
+										int code = (x.key.get_str_val())[j];
 										if (code > 0 && (code < 0x20 || code == 0x7F))
 										{
 											char buf[] = "\\uDDDD";
@@ -2081,7 +2128,7 @@ namespace claujson {
 											stream << buf;
 										}
 										else {
-											stream << (*x.key.get_str_val())[j];
+											stream << (x.key.get_str_val())[j];
 										}
 									}
 								}
@@ -2100,8 +2147,8 @@ namespace claujson {
 							if (
 								x.data.type() == simdjson::internal::tape_type::STRING) {
 								stream << "\"";
-								for (uint64_t j = 0; j < ((std::string&)(*x.data.get_str_val())).size(); ++j) {
-									switch ((*x.data.get_str_val())[j]) {
+								for (uint64_t j = 0; j < ((std::string&)(x.data.get_str_val())).size(); ++j) {
+									switch ((x.data.get_str_val())[j]) {
 									case '\\':
 										stream << "\\\\";
 										break;
@@ -2113,13 +2160,13 @@ namespace claujson {
 										break;
 
 									default:
-										if (isprint((*x.data.get_str_val())[j]))
+										if (isprint((x.data.get_str_val())[j]))
 										{
-											stream << (*x.data.get_str_val())[j];
+											stream << (x.data.get_str_val())[j];
 										}
 										else
 										{
-											int code = (*x.data.get_str_val())[j];
+											int code = (x.data.get_str_val())[j];
 											if (code > 0 && (code < 0x20 || code == 0x7F))
 											{
 												char buf[] = "\\uDDDD";
@@ -2127,7 +2174,7 @@ namespace claujson {
 												stream << buf;
 											}
 											else {
-												stream << (*x.data.get_str_val())[j];
+												stream << (x.data.get_str_val())[j];
 											}
 										}
 									}
@@ -2191,8 +2238,8 @@ namespace claujson {
 						if (
 							x.data.type() == simdjson::internal::tape_type::STRING) {
 							stream << "\"";
-							for (uint64_t j = 0; j < (*x.data.get_str_val()).size(); ++j) {
-								switch ((*x.data.get_str_val())[j]) {
+							for (uint64_t j = 0; j < (x.data.get_str_val()).size(); ++j) {
+								switch ((x.data.get_str_val())[j]) {
 								case '\\':
 									stream << "\\\\";
 									break;
@@ -2204,13 +2251,13 @@ namespace claujson {
 									break;
 
 								default:
-									if (isprint((*x.data.get_str_val())[j]))
+									if (isprint((x.data.get_str_val())[j]))
 									{
-										stream << (*x.data.get_str_val())[j];
+										stream << (x.data.get_str_val())[j];
 									}
 									else
 									{
-										int code = (*x.data.get_str_val())[j];
+										int code = (x.data.get_str_val())[j];
 										if (code > 0 && (code < 0x20 || code == 0x7F))
 										{
 											char buf[] = "\\uDDDD";
@@ -2218,7 +2265,7 @@ namespace claujson {
 											stream << buf;
 										}
 										else {
-											stream << (*x.data.get_str_val())[j];
+											stream << (x.data.get_str_val())[j];
 										}
 									}
 								}
@@ -2328,124 +2375,6 @@ namespace claujson {
 				for (int i = 1; i < thr_num; ++i) {
 					start[i] = how_many / thr_num * i;
 				}
-
-				int c = clock();
-
-
-				// no l,u,d  any 
-				 // true      true
-				 // false     true
-				/*
-				int count = 1;
-				for (; tape_idx < how_many; tape_idx++) {
-					if (count < thr_num && tape_idx == start[count]) {
-						count++;
-					}
-					else if (count < thr_num && tape_idx == start[count] + 1) {
-						start[count] = tape_idx;
-						count++;
-					}
-					tape_val = tape[tape_idx];
-					payload = tape_val & simdjson::internal::JSON_VALUE_MASK;
-					type = uint8_t(tape_val >> 56);
-					switch (type) {
-					case 'l':
-					case 'u':
-					case 'd':
-						tape_idx++;
-						break;
-					}
-				}
-				*/
-
-				/*
-				int d = clock();
-				std::cout << d - c << "ms\n";
-				bool now_object = false;
-				bool even = false;
-				for (tape_idx = 1; tape_idx < how_many; tape_idx++) {
-					//os << tape_idx << " : ";
-					tape_val = tape[tape_idx];
-					payload = tape_val & simdjson::internal::JSON_VALUE_MASK;
-					type = uint8_t(tape_val >> 56);
-					even = !even;
-					switch (type) {
-					case '"': // we have a string
-						if (now_object && even) {
-							key[tape_idx] = 1;
-						}
-						break;
-					case 'l': // we have a long int
-					//	if (tape_idx + 1 >= how_many) {
-					//		return false;
-						//}
-						//  os << "integer " << static_cast<int64_t>(tape[++tape_idx]) << "\n";
-						++tape_idx;
-						break;
-					case 'u': // we have a long uint
-						//if (tape_idx + 1 >= how_many) {
-						//	return false;
-						//}
-						//  os << "unsigned integer " << tape[++tape_idx] << "\n";
-						++tape_idx;
-						break;
-					case 'd': // we have a double
-					  //  os << "float ";
-						//if (tape_idx + 1 >= how_many) {
-						//	return false;
-						//}
-						// double answer;
-						// std::memcpy(&answer, &tape[++tape_idx], sizeof(answer));
-					   //  os << answer << '\n';
-						++tape_idx;
-						break;
-					case 'n': // we have a null
-					   // os << "null\n";
-						break;
-					case 't': // we have a true
-					   // os << "true\n";
-						break;
-					case 'f': // we have a false
-					  //  os << "false\n";
-						break;
-					case '{': // we have an object
-					 //   os << "{\t// pointing to next tape location " << uint32_t(payload)
-					 //       << " (first node after the scope), "
-					  //      << " saturated count "
-					   //     << ((payload >> 32) & internal::JSON_COUNT_MASK) << "\n";
-						now_object = true; even = false;
-						//_stack.push_back(1);
-						//_stack2.push_back(0);
-						break;
-					case '}': // we end an object
-					  //  os << "}\t// pointing to previous tape location " << uint32_t(payload)
-					  //      << " (start of the scope)\n";
-						//_stack.pop_back();
-						//_stack2.pop_back();
-						now_object = key[uint32_t(payload) - 1] == 1; even = false;
-						break;
-					case '[': // we start an array
-					  //  os << "[\t// pointing to next tape location " << uint32_t(payload)
-					  //      << " (first node after the scope), "
-					  //      << " saturated count "
-					   //     << ((payload >> 32) & internal::JSON_COUNT_MASK) << "\n";
-						//_stack.push_back(0);
-						now_object = false; even = false;
-						break;
-					case ']': // we end an array
-					 //   os << "]\t// pointing to previous tape location " << uint32_t(payload)
-					  //      << " (start of the scope)\n";
-						//_stack.pop_back();
-						now_object = key[uint32_t(payload) - 1] == 1; even = false;
-						break;
-					case 'r': // we start and end with the root node
-					  // should we be hitting the root node?
-						break;
-					default:
-						return nullptr;
-					}
-				}
-				std::cout << clock() - d << "ms\n";*/
 			}
 
 
