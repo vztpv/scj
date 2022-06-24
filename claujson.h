@@ -756,7 +756,7 @@ namespace claujson {
 			
 
 			if (item->type == -1) { //}&& this->data.size() >= 1) {
-				throw "Error new object is root, in LinkItemType";
+				throw "Error new item? is root, in LinkItemType";
 			}
 
 			this->data.push_back(item);
@@ -909,7 +909,7 @@ namespace claujson {
 				throw "Error not valid json in add_array_with_key";
 			}
 			if (_array->type == -1) { //}&& this->data.size() >= 1) {
-				throw "Error new object is root, in add_array_with_key";
+				throw "Error new array is root, in add_array_with_key";
 			}
 
 			if (_array->value.key.type() != simdjson::internal::tape_type::STRING) {
@@ -965,7 +965,7 @@ namespace claujson {
 				throw "Error not valid json in add_array_with_no_key";
 			}
 			if (_array->type == -1) { //}&& this->data.size() >= 1) {
-				throw "Error new object is root, in add_array_with_no_key";
+				throw "Error new array is root, in add_array_with_no_key";
 			}
 
 			if (_array->value.key.type() == simdjson::internal::tape_type::STRING) {
