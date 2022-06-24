@@ -730,6 +730,11 @@ namespace claujson {
 			if (this->type == -1 && ut->value.has_key) {
 				throw "Error in LinkUserType,  now is root node, but new child has a key";
 			}
+
+			if (ut->type == -1) { //}&& this->data.size() >= 1) {
+				throw "Error new object is root, in LinkUserType";
+			}
+
 			data.push_back(ut);
 
 			ut->parent = this;
@@ -749,6 +754,11 @@ namespace claujson {
 				throw "Error in LinkItemType,  now is root node, but new child has key";
 			}
 			
+
+			if (item->type == -1) { //}&& this->data.size() >= 1) {
+				throw "Error new object is root, in LinkItemType";
+			}
+
 			this->data.push_back(item);
 		}
 
@@ -871,6 +881,9 @@ namespace claujson {
 				throw "Error not valid json in add_object_with_key";
 			}
 
+			if (object->type == -1) { //}&& this->data.size() >= 1) {
+				throw "Error new object is root, in add_object_with_key";
+			}
 
 			if (object->value.key.type() != simdjson::internal::tape_type::STRING) {
 				throw "Error in add_object_with_key, key is not string";
@@ -894,6 +907,9 @@ namespace claujson {
 
 			if (this->type == -1) { // }&& this->data.size() >= 1) {
 				throw "Error not valid json in add_array_with_key";
+			}
+			if (_array->type == -1) { //}&& this->data.size() >= 1) {
+				throw "Error new object is root, in add_array_with_key";
 			}
 
 			if (_array->value.key.type() != simdjson::internal::tape_type::STRING) {
@@ -919,6 +935,11 @@ namespace claujson {
 			if (this->type == -1 && this->data.size() >= 1) {
 				throw "Error not valid json in add_object_with_no_key";
 			}
+			
+			if (object->type == -1) { //}&& this->data.size() >= 1) {
+				throw "Error new object is root, in add_object_with_no_key";
+			}
+
 
 			if (object->value.key.type() == simdjson::internal::tape_type::STRING) {
 				throw "Error in add_object_with_no_key, expect new child is object but has no key";
@@ -942,6 +963,9 @@ namespace claujson {
 
 			if (this->type == -1 && this->data.size() >= 1) {
 				throw "Error not valid json in add_array_with_no_key";
+			}
+			if (_array->type == -1) { //}&& this->data.size() >= 1) {
+				throw "Error new object is root, in add_array_with_no_key";
 			}
 
 			if (_array->value.key.type() == simdjson::internal::tape_type::STRING) {
@@ -1168,7 +1192,38 @@ namespace claujson {
 
 namespace claujson {
 
-	inline simdjson::internal::tape_type get_type(unsigned char x) { // todo...
+	inline unsigned char __arr[256] = {
+	59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59
+ , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59
+ , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59
+ , 59  , 59  , 59  , 59  , 34  , 59  , 59  , 59  , 59  , 59
+ , 59  , 59  , 59  , 59  , 44  , 100  , 59  , 59  , 100  , 100
+ , 100  , 100  , 100  , 100  , 100  , 100  , 100  , 100  , 58  , 59
+ , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59
+ , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59
+ , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59
+ , 59  , 91  , 59  , 93  , 59  , 59  , 59  , 59  , 59  , 59
+ , 59  , 59  , 102  , 59  , 59  , 59  , 59  , 59  , 59  , 59
+ , 110  , 59  , 59  , 59  , 59  , 59  , 116  , 59  , 59  , 59
+ , 59  , 59  , 59  , 123  , 59  , 125  , 59  , 59  , 59  , 59
+ , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59
+ , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59
+ , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59
+ , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59
+ , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59
+ , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59
+ , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59
+ , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59
+ , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59
+ , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59
+ , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59
+ , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59
+ , 59  , 59  , 59  , 59  , 59  , 59
+	};
+
+	inline simdjson::internal::tape_type get_type(unsigned char x) { 
+		return (simdjson::internal::tape_type)__arr[x]; // more fast version..
+
 		switch (x) {
 		case '-':
 		case '0':
@@ -1197,7 +1252,7 @@ namespace claujson {
 
 	class LoadData
 	{
-	public:
+	private:
 
 		static int Merge(class UserType* next, class UserType* ut, class UserType** ut_next)
 		{
@@ -1276,10 +1331,13 @@ namespace claujson {
 	private:
 
 		struct TokenTemp { // need to rename.
-			int64_t idx;
-			int64_t idx2;
-			int64_t len;
-			uint64_t id;
+			// 
+			int64_t idx;  // buf_idx?
+			int64_t idx2; // next_buf_idx?
+			int64_t len;  
+			//
+			uint64_t id; // token_idx?
+			//
 			bool is_key = false;
 		};
 
@@ -1314,7 +1372,7 @@ namespace claujson {
 				bool is_now_comma = false;
 
 				if (token_arr_start > 0) {
-					const simdjson::internal::tape_type before_type = // next_type
+					const simdjson::internal::tape_type before_type = 
 						get_type(buf[imple->structural_indexes[token_arr_start - 1]]);
 
 					is_before_comma = before_type == simdjson::internal::tape_type::COMMA;
@@ -1363,7 +1421,7 @@ namespace claujson {
 
 						if (type == simdjson::internal::tape_type::COMMA) {
 							if (token_arr_start + i + 1 < imple->n_structural_indexes) {
-								const simdjson::internal::tape_type _type =
+								const simdjson::internal::tape_type _type = // next_type
 									get_type(buf[imple->structural_indexes[token_arr_start + i + 1]]);
 
 								if (_type == simdjson::internal::tape_type::END_ARRAY || _type == simdjson::internal::tape_type::END_OBJECT) {
@@ -1398,19 +1456,16 @@ namespace claujson {
 						case simdjson::internal::tape_type::FALSE_VALUE:
 						case simdjson::internal::tape_type::NULL_VALUE:
 						case simdjson::internal::tape_type::NONE: //
-							is_now_comma = true; // std::cout << "3-i " << i << "\n";
+							is_now_comma = true; 
 							break;
 						}
 
 						if (token_arr_start + i + 1 < imple->n_structural_indexes) {
-							const simdjson::internal::tape_type _type =
+							const simdjson::internal::tape_type _type = // next_type
 								get_type(buf[imple->structural_indexes[token_arr_start + i + 1]]);
 
-							//std::cout << "chk " << (int)get_type(buf[imple->structural_indexes[token_arr_start + i + 1]]) << "\n";
-
 							if (_type == simdjson::internal::tape_type::END_ARRAY || _type == simdjson::internal::tape_type::END_OBJECT) {
-								is_now_comma = false; //std::cout << "1-i " << i << "\n";
-								//
+								is_now_comma = false;
 							}
 						}
 						else {
@@ -2337,7 +2392,7 @@ namespace claujson {
 		int _ = clock();
 
 		{
-			simdjson::dom::parser test;
+			static simdjson::dom::parser test;
 
 			static auto x = test.load(fileName);
 
