@@ -1,4 +1,4 @@
-# scj [![Build status](https://ci.appveyor.com/api/projects/status/s9aakn9pgcba61pc?svg=true)](https://ci.appveyor.com/project/vztpv/scj)
+# scj [![Build status](https://ci.appveyor.com/api/projects/status/s9aakn9pgcba61pc?svg=true)](https://ci.appveyor.com/project/vztpv/scj) : using simdjson and std::thread
 # Using simdjson/simdjson (https://github.com/simdjson/simdjson) Apache-2.0 License
                         Apache License
                            Version 2.0, January 2004
