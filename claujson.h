@@ -23,8 +23,8 @@ namespace claujson {
 	class Data {
 	private:
 		union {
-			long long _int_val = 0;
-			unsigned long long _uint_val;
+			int64_t _int_val = 0;
+			uint64_t _uint_val;
 			double _float_val;
 			std::string* _str_val; // const
 		};
@@ -32,16 +32,51 @@ namespace claujson {
 		simdjson::internal::tape_type _type = simdjson::internal::tape_type::NONE;
 
 	public:
+		explicit Data(int x) {
+			set_int(x);
+		}
 
+		explicit Data(unsigned int x) {
+			set_uint(x);
+		}
+
+		explicit Data(int64_t x) {
+			set_int(x);
+		}
+		explicit Data(uint64_t x) {
+			set_uint(x);
+		}
+		explicit Data(double x) {
+			set_float(x);
+		}
+		explicit Data(std::string_view x) {
+			set_str(x.data(), x.size());
+		}
+		explicit Data(const char* x) {
+			set_str(x, strlen(x));
+		}
+		explicit Data(bool x) {
+			if (x) {
+				set_type(simdjson::internal::tape_type::TRUE_VALUE);
+			}
+			else {
+				set_type(simdjson::internal::tape_type::FALSE_VALUE);
+			}
+		}
+		explicit Data(nullptr_t x) {
+			set_type(simdjson::internal::tape_type::NULL_VALUE);
+		}
+
+	public:
 		simdjson::internal::tape_type type() const {
 			return _type;
 		}
 
-		long long int_val() const {
+		int64_t int_val() const {
 			return _int_val;
 		}
 
-		unsigned long long uint_val() const {
+		uint64_t uint_val() const {
 			return _uint_val;
 		}
 
@@ -49,11 +84,11 @@ namespace claujson {
 			return _float_val;
 		}
 
-		long long& int_val() {
+		int64_t& int_val() {
 			return _int_val;
 		}
 
-		unsigned long long& uint_val() {
+		uint64_t& uint_val() {
 			return _uint_val;
 		}
 
@@ -563,8 +598,19 @@ namespace claujson {
 
 	class UserType {
 
-
 	public:
+
+		INLINE static UserType* make_object() {
+			UserType* temp = new UserType();
+			new (temp) UserType(ItemType(), 0);
+			return temp;
+		}
+
+		INLINE static UserType* make_array() {
+			UserType* temp = new UserType();
+			new (temp) UserType(ItemType(), 1);
+			return temp;
+		}
 
 		INLINE static UserType* make_object(ItemType&& x) {
 			UserType* temp = new UserType();
@@ -619,6 +665,26 @@ namespace claujson {
 			return (value.key) == (other.value.key);
 		}
 
+		// ?
+
+		void to_object() { // remain.. key?
+			type = 0;
+			data.clear();
+			value.data.clear();
+		}
+
+		void to_array() {
+			type = 1;
+			data.clear();
+			value.data.clear();
+		}
+
+		void to_item() {
+			type = 4;
+			data.clear();
+		}
+
+
 	public:
 
 		INLINE const std::vector<UserType*>& get_data() const { return data; }
@@ -637,6 +703,24 @@ namespace claujson {
 		const UserType* find_ut(std::string_view key) const {
 			for (size_t i = 0; i < data.size(); ++i) {
 				if (data[i]->is_user_type() && data[i]->value.key.get_str_val() == key) {
+					return data[i];
+				}
+			}
+			return nullptr;
+		}
+
+		UserType* find_it(std::string_view key) {
+			for (size_t i = 0; i < data.size(); ++i) {
+				if (data[i]->is_item_type() && data[i]->value.key.get_str_val() == key) {
+					return data[i];
+				}
+			}
+			return nullptr;
+		}
+
+		const UserType* find_it(std::string_view key) const {
+			for (size_t i = 0; i < data.size(); ++i) {
+				if (data[i]->is_item_type() && data[i]->value.key.get_str_val() == key) {
 					return data[i];
 				}
 			}
@@ -713,7 +797,7 @@ namespace claujson {
 		}
 
 		const ItemType& get_value() const { return value; }
-
+		ItemType& get_value() { return value; }
 
 	private:
 		void LinkUserType(UserType* ut) // friend?
@@ -818,7 +902,7 @@ namespace claujson {
 		}
 
 		// name key check?
-		void add_object_element(const claujson::Data& name, const claujson::Data& data) {
+		UserType* add_object_element(const claujson::Data& name, const claujson::Data& data) {
 			// todo - chk this->type == 0 (object) but name is empty
 			// todo - chk this->type == 1 (array) but name is not empty.
 
@@ -833,10 +917,11 @@ namespace claujson {
 				throw "Error in add_object_element, name is not key(string)";
 			}
 
-			this->data.push_back(make_object(ItemType(name, data, true)));
+			this->data.push_back(new UserType(name, data, true, 4));
+			return this->data.back();
 		}
 
-		void add_array_element(const claujson::Data& data) {
+		UserType* add_array_element(const claujson::Data& data) {
 			// todo - chk this->type == 0 (object) but name is empty
 			// todo - chk this->type == 1 (array) but name is not empty.
 
@@ -847,8 +932,45 @@ namespace claujson {
 				throw "Error in add_array_element, not valid json ";
 			}
 
-			this->data.push_back(make_array(ItemType(Data(), data, false))); // (Type*)make_item_type(std::move(temp), data));
+			this->data.push_back(new UserType(Data(), data, false, 4)); // (Type*)make_item_type(std::move(temp), data));
+			return this->data.back();
 		}
+
+		// name key check?
+		UserType* add_object_element(claujson::Data&& name, claujson::Data&& data) {
+			// todo - chk this->type == 0 (object) but name is empty
+			// todo - chk this->type == 1 (array) but name is not empty.
+
+			if (this->is_array()) {
+				throw "Error in add_object_element, add object element to array ";
+			}
+			if (this->type == -1) {
+				throw "Error in add_object_element, not valid json";
+			}
+
+			if (name.type() != simdjson::internal::tape_type::STRING) {
+				throw "Error in add_object_element, name is not key(string)";
+			}
+
+			this->data.push_back(new UserType(std::move(name), std::move(data), true, 4));
+			return this->data.back();
+		}
+
+		UserType* add_array_element(claujson::Data&& data) {
+			// todo - chk this->type == 0 (object) but name is empty
+			// todo - chk this->type == 1 (array) but name is not empty.
+
+			if (this->is_object()) {
+				throw "Error in add_array_element, add object element to array ";
+			}
+			if (this->type == -1 && this->data.size() >= 1) {
+				throw "Error in add_array_element, not valid json ";
+			}
+
+			this->data.push_back(new UserType(Data(), std::move(data), false, 4)); // (Type*)make_item_type(std::move(temp), data));
+			return this->data.back();
+		}
+
 
 		void remove_all(UserType* ut) {
 			for (size_t i = 0; i < ut->data.size(); ++i) {
@@ -1252,7 +1374,7 @@ namespace claujson {
 
 	class LoadData
 	{
-	private:
+	public:
 
 		static int Merge(class UserType* next, class UserType* ut, class UserType** ut_next)
 		{
