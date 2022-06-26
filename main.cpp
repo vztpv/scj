@@ -19,21 +19,21 @@ using namespace std::literals::string_view_literals;
 
 namespace scj {
 
-	class json;
+	
 
-	class json_ref {
+	class json {
 	private:
-		int state = 0;
-		claujson::UserType* node;
-	public:
-		explicit json_ref(claujson::UserType* other) { // chk other is not nullptr?
-			node = other;
-		}
-
-		friend json;
-	};
-
-	class json { 
+		class json_ref {
+			friend class json;
+		private:
+			int state = 0;
+			claujson::UserType* node;
+		public:
+			explicit json_ref(claujson::UserType* other, int state = 0) { // chk other is not nullptr?
+				node = other;
+				this->state = state;
+			}
+		};
 	public:
 		bool is_ref()const { return is_ref_; }
 	private:
@@ -60,14 +60,16 @@ namespace scj {
 			is_ref_ = true;
 			node = other.node;
 
-			if (node->is_array()) {
-				state = 2;
-			}
-			else if (node->is_object()) {
-				state = 1;
-			}
-			else { // else if(other_node->is_item_type()) {
-				state = 0;
+			if (other.state == 0) {
+				if (node->is_array()) {
+					state = 2;
+				}
+				else if (node->is_object()) {
+					state = 1;
+				}
+				else { // else if(other_node->is_item_type()) {
+					state = 0;
+				}
 			}
 		}	
 	public:
