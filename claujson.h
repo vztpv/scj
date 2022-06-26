@@ -727,6 +727,24 @@ namespace claujson {
 			return nullptr;
 		}
 
+		UserType* find(std::string_view key) {
+			for (size_t i = 0; i < data.size(); ++i) {
+				if (data[i]->value.key.get_str_val() == key) {
+					return data[i];
+				}
+			}
+			return nullptr;
+		}
+
+		const UserType* find(std::string_view key) const {
+			for (size_t i = 0; i < data.size(); ++i) {
+				if (data[i]->value.key.get_str_val() == key) {
+					return data[i];
+				}
+			}
+			return nullptr;
+
+		}
 	public:
 		UserType(const UserType& other)
 			: value(other.value),

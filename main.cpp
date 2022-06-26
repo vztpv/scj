@@ -23,6 +23,7 @@ namespace scj {
 
 	class json_ref {
 	private:
+		int state = 0;
 		claujson::UserType* node;
 	public:
 		explicit json_ref(claujson::UserType* other) { // chk other is not nullptr?
@@ -44,6 +45,7 @@ namespace scj {
 		explicit json(claujson::UserType* other_node) {
 			node = other_node->clone();
 		
+			// cf) is_root()?
 			if (other_node->is_array()) {
 				state = 2;
 			}
@@ -51,12 +53,22 @@ namespace scj {
 				state = 1;
 			}
 			else { // else if(other_node->is_item_type()) {
-				state = 3;
+				state = 0;
 			}
 		}
 		explicit json(json_ref other) {
 			is_ref_ = true;
 			node = other.node;
+
+			if (node->is_array()) {
+				state = 2;
+			}
+			else if (node->is_object()) {
+				state = 1;
+			}
+			else { // else if(other_node->is_item_type()) {
+				state = 0;
+			}
 		}	
 	public:
 		json() { node = new claujson::UserType(); }
@@ -108,7 +120,7 @@ namespace scj {
 				}
 
 				if (state == 1) {
-					if (auto* x = node->get_data_list(0)->find_it(key); x != nullptr) {
+					if (auto* x = node->get_data_list(0)->find(key); x != nullptr) {
 						return json(json_ref(x));
 					}
 					else {
@@ -128,7 +140,7 @@ namespace scj {
 				}
 
 				if (state == 1) {
-					if (auto* x = node->find_it(key); x != nullptr) {
+					if (auto* x = node->find(key); x != nullptr) {
 						return json(json_ref(x));
 					}
 					else {
@@ -299,13 +311,20 @@ void test() {
 		j["happy"] = true;
 
 		// add a string that is stored as std::string
-		j["name"] = "Niels";
-
+		
+			j["name"] = "Niels";
+			
+			j["name"] = "eee";
+		
 		// add another null object by passing nullptr
 		j["nothing"] = nullptr;
 
 		// add an object inside the object
 		j["answer"]["everything"] = 42;
+		
+		std::cout << j << "\n";
+
+		j["answer"]["wow"] = 33;
 
 		std::cout << j << "\n";
 
