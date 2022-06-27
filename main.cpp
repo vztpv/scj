@@ -20,22 +20,23 @@
 using namespace std::literals::string_view_literals;
 
 namespace scj {
+	class json; 
 
-	
+	class json_ref {
+		friend class json;
+	private:
+		int state = 0;
+		claujson::UserType* node;
+	public:
+		explicit json_ref(claujson::UserType* other, int state = 0) { // chk other is not nullptr?
+			node = other;
+			this->state = state;
+		}
+	};
 
 	class json {
 	private:
-		class json_ref {
-			friend class json;
-		private:
-			int state = 0;
-			claujson::UserType* node;
-		public:
-			explicit json_ref(claujson::UserType* other, int state = 0) { // chk other is not nullptr?
-				node = other;
-				this->state = state;
-			}
-		};
+	
 	public:
 		bool is_ref()const { return is_ref_; }
 	private:
@@ -44,10 +45,10 @@ namespace scj {
 		claujson::UserType* node = nullptr;
 	private:
 		// deep copy??
-		explicit json(claujson::UserType* other_node) {
+		explicit json(claujson::UserType* other_node) { // cf) is_root()?
 			node = other_node->clone();
 		
-			// cf) is_root()?
+			
 			if (other_node->is_array()) {
 				state = 2;
 			}
@@ -58,23 +59,40 @@ namespace scj {
 				state = 0;
 			}
 		}
+		
+	public:
 		explicit json(json_ref other) {
 			is_ref_ = true;
 			node = other.node;
+			state = 0;
 
-			if (other.state == 0) {
-				if (node->is_array()) {
-					state = 2;
+			if (node->is_root()) {
+				if (node->get_data_size() > 0) {
+					if (node->get_data_list(0)->is_array()) {
+						state = 2;
+					}
+					else if (node->get_data_list(0)->is_object()) {
+						state = 1;
+					}
+					else {
+						state = 0;
+					}
 				}
-				else if (node->is_object()) {
-					state = 1;
-				}
-				else { // else if(other_node->is_item_type()) {
-					state = 0;
+			}
+			else {
+				if (other.state == 0) {
+					if (node->is_array()) {
+						state = 2;
+					}
+					else if (node->is_object()) {
+						state = 1;
+					}
+					else { // else if(other_node->is_item_type()) {
+						state = 0;
+					}
 				}
 			}
 		}	
-	public:
 		json() { node = new claujson::UserType(); }
 		
 		json(const json& other) {
@@ -159,6 +177,33 @@ namespace scj {
 			}
 		}
 
+		json operator[](size_t idx) {
+			if (node->is_root()) {
+				if (state == 2 && node->get_data_size() > 0) {
+					if (idx < 0 || idx >= node->get_data_list(0)->get_data_size()) {
+						throw "invalid index\n";
+					}
+
+					return json(json_ref(node->get_data_list(0)->get_data_list(idx)));
+				}
+				else {
+					throw "it is not array \n";
+				}
+			}
+			else {
+				if (state == 2 && node->get_data_size() > 0) {
+					if (idx < 0 || idx >= node->get_data_size()) {
+						throw "invalid index\n";
+					}
+					return json(json_ref(node->get_data_list(idx)));
+				}
+				else {
+					throw "it is not array \n";
+				}
+			}
+		}
+
+
 		template <class T>
 		bool operator=(const T& x) {
 			if (node && node->is_item_type()) {
@@ -190,21 +235,21 @@ namespace scj {
 		}
 
 		size_t size() const { 
-			if (node->is_root()) {
+			if (node->is_root() && node->get_data_size() > 0) {
 				return node->get_data_list(0)->get_data_size();
 			}
 			return node->get_data_size();
 		}
 
 		bool empty() const {
-			if (node->is_root()) {
+			if (node->is_root() && node->get_data_size() > 0) {
 				return node->get_data_list(0)->get_data_size() == 0;
 			}
 			return node->get_data_size() == 0;
 		}
 
 		void clear() {
-			node->remove_all();
+			node->remove_all(); 
 			state = 0;
 		}
 
@@ -219,14 +264,14 @@ namespace scj {
 
 		bool is_array() const {
 			if (node->is_root()) {
-				node->get_data_list(0)->is_array();
+				return node->get_data_size() > 0 &&  node->get_data_list(0)->is_array();
 			}
 			return node->is_array();
 		}
 
 		bool is_object() const {
 			if (node->is_root()) {
-				node->get_data_list(0)->is_object();
+				return node->get_data_size() > 0 && node->get_data_list(0)->is_object();
 			}
 			return node->is_object();
 		}
@@ -247,14 +292,14 @@ namespace scj {
 		}
 
 		bool contains(std::string_view key) {
-			if (node->is_root()) {
+			if (node->is_root() && node->get_data_size() > 0) {
 				for (size_t i = 0; i < node->get_data_list(0)->get_data_size(); ++i) {
 					if (node->get_data_list(0)->get_data_list(i)->get_value().key.get_str_val() == key) {
 						return true;
 					}
 				}
 			}
-			else {
+			else if (!node->is_root()) {
 				for (size_t i = 0; i < node->get_data_size(); ++i) {
 					if (node->get_data_list(i)->get_value().key.get_str_val() == key) {
 						return true;
@@ -265,7 +310,7 @@ namespace scj {
 		}
 
 		bool erase(std::string_view key) {
-			if (node->is_root()) {
+			if (node->is_root() && node->get_data_size() > 0) {
 				for (size_t i = 0; i < node->get_data_list(0)->get_data_size(); ++i) {
 					if (node->get_data_list(0)->get_data_list(i)->get_value().key.get_str_val() == key) {
 						node->get_data_list(0)->remove_data_list(i);
@@ -273,7 +318,7 @@ namespace scj {
 					}
 				}
 			}
-			else {
+			else if (!node->is_root()) {
 				for (size_t i = 0; i < node->get_data_size(); ++i) {
 					if (node->get_data_list(i)->get_value().key.get_str_val() == key) {
 						node->remove_data_list(i);
@@ -295,7 +340,16 @@ namespace scj {
 		}
 
 		friend std::ostream& operator<<(std::ostream& stream, const json& j) {
-			claujson::LoadData::save(stream, *j.node);
+
+			if (j.is_array() || j.is_object()) {
+				claujson::LoadData::save(stream, *j.node);
+			}
+			else {
+				if (j.node->get_value().has_key) {
+					stream << j.node->get_value().key << " : ";
+				}
+				stream << j.node->get_value().data << "\n";
+			}
 			return stream;
 		}
 	};
@@ -371,6 +425,8 @@ void test() {
 		o["foo"] = 23;
 		o["bar"] = false;
 		o["baz"] = 3.141;
+
+
 
 		// find an entry
 		if (o.contains("foo")) {
@@ -485,6 +541,22 @@ int main(int argc, char* argv[])
 			
 			if (ok) {
 				test();
+
+				try {
+					scj::json x{ scj::json_ref(&ut) };
+
+					std::cout << x.is_object() << "\n";
+					std::cout << x["type"] << "\n";
+					std::cout << x["features"][0] << "\n"; // no features -> make features. but no idx -> throw const_char*.
+					
+					x["features"][0].clear();
+				}
+				catch (const char* cstr) {
+					std::cout << cstr << "\n";
+				}
+				catch (...) {
+					std::cout << "Error..\n";
+				}
 			}
 
 			return !ok;
