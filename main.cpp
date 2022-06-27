@@ -32,11 +32,13 @@ namespace scj {
 			node = other;
 			this->state = state;
 		}
+
+		explicit json_ref(const json& other);
 	};
 
 	class json {
-	private:
-	
+	private:	
+		friend json_ref;
 	public:
 		bool is_ref()const { return is_ref_; }
 	private:
@@ -64,7 +66,7 @@ namespace scj {
 		explicit json(json_ref other) {
 			is_ref_ = true;
 			node = other.node;
-			state = 0;
+			state = other.state;
 
 			if (node->is_root()) {
 				if (node->get_data_size() > 0) {
@@ -329,6 +331,18 @@ namespace scj {
 			return false;
 		}
 
+		bool erase(size_t idx) {
+			if (node->is_root() && node->get_data_size() > 0) {
+				node->get_data_list(0)->remove_data_list(idx);
+				return true;
+			}
+			else if (!node->is_root()) {
+				node->remove_data_list(idx);
+				return true;
+			}
+			return false;
+		}
+
 		json push_array_with_no_key() {
 			node->add_array_with_no_key(claujson::UserType::make_array());
 			return json(json_ref(node->get_data().back()));
@@ -352,7 +366,24 @@ namespace scj {
 			}
 			return stream;
 		}
+
+		claujson::UserType* Get() {
+			if (this->is_ref_) {
+				return nullptr;
+			}
+
+			auto* x = this->node;
+			this->node = nullptr;
+			this->state = 0;
+			this->is_ref_ = false;
+			return x;
+		}
 	};
+
+	inline json_ref::json_ref(const json& other) {
+		node = other.node;
+		state = other.state;
+	}
 }
 
 using namespace scj;
@@ -442,6 +473,7 @@ void test() {
 		std::cout << o << "\n";
 	}
 }
+
 
 int main(int argc, char* argv[])
 {
@@ -550,6 +582,8 @@ int main(int argc, char* argv[])
 					std::cout << x["features"][0] << "\n"; // no features -> make features. but no idx -> throw const_char*.
 					
 					x["features"][0].clear();
+
+
 				}
 				catch (const char* cstr) {
 					std::cout << cstr << "\n";
