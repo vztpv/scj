@@ -38,7 +38,7 @@ namespace scj {
 
 	class json {
 	private:	
-		friend json_ref;
+		friend class json_ref;
 	public:
 		bool is_ref()const { return is_ref_; }
 	private:
