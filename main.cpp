@@ -25,7 +25,8 @@ using namespace scj;
 void test() {
 	{
 		// create an empty structure (null)
-		json j;
+		claujson::UserType ut;
+		json j(&ut);
 
 		// add a number that is stored as double (note the implicit conversion of j to an object)
 		j["pi"] = 3.141;
@@ -63,7 +64,8 @@ void test() {
 	}
 
 	{
-		json j;
+		claujson::UserType ut;
+		json j(&ut);
 		j.push_back("foo");
 		j.push_back(1);
 		j.push_back(true); 
@@ -86,7 +88,8 @@ void test() {
 		j.is_string();
 
 		// create an object
-		json o;
+		claujson::UserType ut2;
+		json o(&ut2);
 		o["foo"] = 23;
 		o["bar"] = false;
 		o["baz"] = 3.141;
@@ -210,7 +213,7 @@ int main(int argc, char* argv[])
 
 				try {
 
-					scj::json x{ &ut };
+					scj::json x{ (&ut) };
 
 					std::cout << x.is_object() << "\n";
 					std::cout << x["type"] << "\n";

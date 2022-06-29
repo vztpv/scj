@@ -2685,7 +2685,6 @@ namespace scj {
 				}
 			}
 		}
-		json() { node = new claujson::UserType(); }
 
 		json(const json& other) {
 			state = other.state;
