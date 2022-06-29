@@ -2638,23 +2638,364 @@ namespace claujson {
 		return  { true, length };
 	}
 
-	INLINE int Parse_One(const std::string& str, Data& data) {
-		{
-			static simdjson::dom::parser test;
+}
 
-			auto x = test.parse(str);
+namespace scj {
+	class json {
+	private:
+		int state = 0; // 1 object 2 array 0 item
+		claujson::UserType* node = nullptr;
+	public:
 
-			if (x.error() != simdjson::error_code::SUCCESS) {
-				std::cout << x.error() << "\n";
+		explicit operator bool() const {
+			return valid();
+		}
 
-				return -1;
+		bool valid() const { return node; }
+
+		explicit json(claujson::UserType* ut) {
+			node = ut;
+			state = 0;
+
+			if (node->is_root()) {
+				if (node->get_data_size() > 0) {
+					if (node->get_data_list(0)->is_array()) {
+						state = 2;
+					}
+					else if (node->get_data_list(0)->is_object()) {
+						state = 1;
+					}
+					else {
+						state = 0;
+					}
+				}
+				else {
+					state = 0;
+				}
+			}
+			else {
+				if (node->is_array()) {
+					state = 2;
+				}
+				else if (node->is_object()) {
+					state = 1;
+				}
+				else { // else if(other_node->is_item_type()) {
+					state = 0;
+				}
+			}
+		}
+		json() { node = new claujson::UserType(); }
+
+		json(const json& other) {
+			state = other.state;
+			node = other.node;
+		}
+
+		virtual ~json() {
+			//
+		}
+
+		json& operator=(const json& other) {
+			if (this == &other) {
+				return *this;
 			}
 
-			const auto& buf = test.raw_buf();
-			const auto& string_buf = test.raw_string_buf();
+			state = other.state;
 
-			//data = Convert(&tape[1], string_buf);
+			node = other.node;
+
+			return *this;
 		}
-		return 0;
-	}
+
+		json& operator=(json&& other) noexcept {
+			std::swap(state, other.state);
+			std::swap(node, other.node);
+
+			return *this;
+		}
+
+		json at(std::string_view key) {
+			if (node->is_root()) {
+				if (state == 1) {
+					auto* x = node->get_data_list(0)->find(key);
+					return json(x);
+				}
+				else {
+					throw "it is not object \n";
+				}
+			}
+			else {
+				if (state == 1) {
+					auto* x = node->find(key);
+					return json(x);
+				}
+				else {
+					throw "it is not object \n";
+				}
+			}
+		}
+
+		json operator[](std::string_view key) {
+			if (node->is_root()) {
+				if (state == 0) {
+					state = 1; // now, object.
+					node->add_object_with_no_key(claujson::UserType::make_object());
+				}
+
+				if (state == 1) {
+					if (auto* x = node->get_data_list(0)->find(key); x != nullptr) {
+						return json(x);
+					}
+					else {
+						claujson::Data temp;
+						temp.set_str(key.data(), key.size());
+						return json(node->get_data_list(0)->add_object_element(std::move(temp), claujson::Data()));
+					}
+				}
+				else {
+					throw "it is not object \n";
+				}
+			}
+			else {
+				if (state == 0) {
+					state = 1; // now, object.
+					node->to_object();
+				}
+
+				if (state == 1) {
+					if (auto* x = node->find(key); x != nullptr) {
+						return json(x);
+					}
+					else {
+						claujson::Data temp;
+						temp.set_str(key.data(), key.size());
+						return json(node->add_object_element(std::move(temp), claujson::Data()));
+					}
+				}
+				else {
+					throw "it is not object \n";
+				}
+			}
+		}
+
+		json operator[](size_t idx) {
+			if (node->is_root()) {
+				if (state == 2 && node->get_data_size() > 0) {
+					if (idx < 0 || idx >= node->get_data_list(0)->get_data_size()) {
+						throw "invalid index\n";
+					}
+
+					return json(node->get_data_list(0)->get_data_list(idx));
+				}
+				else {
+					throw "it is not array \n";
+				}
+			}
+			else {
+				if (state == 2 && node->get_data_size() > 0) {
+					if (idx < 0 || idx >= node->get_data_size()) {
+						throw "invalid index\n";
+					}
+					return json(node->get_data_list(idx));
+				}
+				else {
+					throw "it is not array \n";
+				}
+			}
+		}
+
+
+		template <class T>
+		bool operator=(const T& x) {
+			if (node && node->is_item_type()) {
+				node->get_value().data = claujson::Data(x);
+				return true;
+			}
+			return false;
+		}
+
+		template <class T>
+		bool push_back(const T& data) {
+			{
+				if (state == 0) {
+					state = 2; // now, array.
+					node->to_array();
+				}
+
+				if (state == 2) {
+					if (auto* x = node; x != nullptr) {
+						node->add_array_element(claujson::Data(data));
+						return true;
+					}
+					return false;
+				}
+				else {
+					return false;
+				}
+			}
+		}
+
+		size_t size() const {
+			if (node->is_root() && node->get_data_size() > 0) {
+				return node->get_data_list(0)->get_data_size();
+			}
+			return node->get_data_size();
+		}
+
+		bool empty() const {
+			if (node->is_root() && node->get_data_size() > 0) {
+				return node->get_data_list(0)->get_data_size() == 0;
+			}
+			return node->get_data_size() == 0;
+		}
+
+		void clear() {
+			node->remove_all();
+			state = 0;
+		}
+
+		// array item type
+		simdjson::internal::tape_type type() const {
+			return node->get_value().data.type();
+		}
+
+		bool is_null() const {
+			return node->get_value().data.type() == simdjson::internal::tape_type::NULL_VALUE;
+		}
+
+		bool is_array() const {
+			if (node->is_root()) {
+				return node->get_data_size() > 0 && node->get_data_list(0)->is_array();
+			}
+			return node->is_array();
+		}
+
+		bool is_object() const {
+			if (node->is_root()) {
+				return node->get_data_size() > 0 && node->get_data_list(0)->is_object();
+			}
+			return node->is_object();
+		}
+
+		bool is_number() const {
+			return node->get_value().data.type() == simdjson::internal::tape_type::INT64 ||
+				node->get_value().data.type() == simdjson::internal::tape_type::UINT64 ||
+				node->get_value().data.type() == simdjson::internal::tape_type::DOUBLE;
+		}
+
+		bool is_string() const {
+			return node->get_value().data.type() == simdjson::internal::tape_type::STRING;
+		}
+
+		bool is_boolean() const {
+			return node->get_value().data.type() == simdjson::internal::tape_type::TRUE_VALUE ||
+				node->get_value().data.type() == simdjson::internal::tape_type::FALSE_VALUE;
+		}
+
+		bool contains(std::string_view key) {
+			if (node->is_root() && node->get_data_size() > 0) {
+				for (size_t i = 0; i < node->get_data_list(0)->get_data_size(); ++i) {
+					if (node->get_data_list(0)->get_data_list(i)->get_value().key.get_str_val() == key) {
+						return true;
+					}
+				}
+			}
+			else if (!node->is_root()) {
+				for (size_t i = 0; i < node->get_data_size(); ++i) {
+					if (node->get_data_list(i)->get_value().key.get_str_val() == key) {
+						return true;
+					}
+				}
+			}
+			return false;
+		}
+
+		bool erase(std::string_view key) {
+			if (node->is_root() && node->get_data_size() > 0) {
+				for (size_t i = 0; i < node->get_data_list(0)->get_data_size(); ++i) {
+					if (node->get_data_list(0)->get_data_list(i)->get_value().key.get_str_val() == key) {
+						node->get_data_list(0)->remove_data_list(i);
+						return true;
+					}
+				}
+			}
+			else if (!node->is_root()) {
+				for (size_t i = 0; i < node->get_data_size(); ++i) {
+					if (node->get_data_list(i)->get_value().key.get_str_val() == key) {
+						node->remove_data_list(i);
+						return true;
+					}
+				}
+			}
+			return false;
+		}
+
+		bool erase(size_t idx) {
+			if (node->is_root() && node->get_data_size() > 0) {
+				node->get_data_list(0)->remove_data_list(idx);
+				return true;
+			}
+			else if (!node->is_root()) {
+				node->remove_data_list(idx);
+				return true;
+			}
+			return false;
+		}
+
+		json push_array_with_no_key() {
+			node->add_array_with_no_key(claujson::UserType::make_array());
+			return json(node->get_data().back());
+		}
+
+		json push_object_with_no_key() {
+			node->add_object_with_no_key(claujson::UserType::make_object());
+			return json(node->get_data().back());
+		}
+
+		friend std::ostream& operator<<(std::ostream& stream, const json& j) {
+
+			if (j.is_array() || j.is_object()) {
+				claujson::LoadData::save(stream, *j.node);
+			}
+			else {
+				if (j.node->get_value().has_key) {
+					stream << j.node->get_value().key << " : ";
+				}
+				stream << j.node->get_value().data << "\n";
+			}
+			return stream;
+		}
+
+		claujson::UserType* Get() {
+			auto* x = this->node;
+			this->node = nullptr;
+			this->state = 0;
+			return x;
+		}
+
+
+		const claujson::Data& get_key() const {
+			return node->get_value().key;
+		}
+
+		const claujson::Data& get_data() const {
+			if (state == 0) {
+				return node->get_value().data;
+			}
+			throw "not itemtype\n";
+		}
+
+		claujson::Data& get_key() {
+			return node->get_value().key;
+		}
+
+		claujson::Data& get_data() {
+			if (state == 0) {
+				return node->get_value().data;
+			}
+			throw "not itemtype\n";
+		}
+
+	};
 }
