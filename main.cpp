@@ -210,7 +210,7 @@ int main(int argc, char* argv[])
 
 				try {
 
-					scj::json x{ scj::json_ref(&ut) };
+					scj::json x{ &ut };
 
 					std::cout << x.is_object() << "\n";
 					std::cout << x["type"] << "\n";
